@@ -1,0 +1,466 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+/* ---------- Button ---------- */
+
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
+type ButtonSize = "sm" | "md" | "xs";
+
+export function Button({
+  variant = "secondary",
+  size = "md",
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
+  return (
+    <button
+      className={cn(
+        "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none select-none",
+        size === "md" && "h-9 px-3.5 text-sm",
+        size === "sm" && "h-8 px-3 text-[13px]",
+        size === "xs" && "h-7 px-2.5 text-xs",
+        variant === "primary" && "bg-accent text-white hover:opacity-90 dark:text-zinc-900",
+        variant === "secondary" && "bg-surface-2 text-foreground hover:bg-border-base/70 border border-border-base",
+        variant === "outline" && "border border-border-base bg-transparent hover:bg-surface-2",
+        variant === "ghost" && "bg-transparent hover:bg-surface-2 text-muted hover:text-foreground",
+        variant === "danger" && "bg-rose-600 text-white hover:bg-rose-500",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/* ---------- Card ---------- */
+
+export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("rounded-xl border border-border-base bg-surface", className)}
+      {...props}
+    />
+  );
+}
+
+export function CardHeader({
+  title,
+  action,
+  className,
+}: {
+  title: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center justify-between px-4 pt-3.5 pb-2", className)}>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">{title}</h3>
+      {action}
+    </div>
+  );
+}
+
+/* ---------- Badge ---------- */
+
+export function Badge({
+  tone = "neutral",
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & {
+  tone?: "neutral" | "green" | "amber" | "red" | "blue" | "violet" | "accent";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap",
+        tone === "neutral" && "bg-surface-2 text-muted border border-border-base",
+        tone === "green" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        tone === "amber" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        tone === "red" && "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+        tone === "blue" && "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+        tone === "violet" && "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+        tone === "accent" && "bg-accent-soft text-accent",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function SourceBadge({ source }: { source: string }) {
+  return source === "brightspace" ? (
+    <Badge tone="accent" title="Synced from Brightspace">Brightspace</Badge>
+  ) : (
+    <Badge tone="neutral" title="Manually added">Manual</Badge>
+  );
+}
+
+export function PriorityBadge({ priority, overridden }: { priority: string; overridden?: boolean }) {
+  const tone = priority === "high" ? "red" : priority === "medium" ? "amber" : "neutral";
+  return (
+    <Badge tone={tone} title={overridden ? "Priority set manually" : "Priority computed from weight & deadline"}>
+      {priority}
+      {overridden ? " •" : ""}
+    </Badge>
+  );
+}
+
+/* ---------- Form controls ---------- */
+
+export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
+  return <label className={cn("block text-[13px] font-medium text-muted mb-1", className)} {...props} />;
+}
+
+export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      className={cn(
+        "w-full h-9 rounded-lg border border-border-base bg-surface px-3 text-sm placeholder:text-faint focus:border-border-strong",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={cn(
+        "w-full rounded-lg border border-border-base bg-surface px-3 py-2 text-sm placeholder:text-faint focus:border-border-strong",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Select({ className, children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={cn(
+        "h-9 w-full rounded-lg border border-border-base bg-surface px-2.5 text-sm focus:border-border-strong",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative h-5.5 w-10 rounded-full transition-colors shrink-0",
+        checked ? "bg-accent" : "bg-border-strong",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow transition-transform",
+          checked ? "translate-x-5" : "translate-x-0.5",
+        )}
+      />
+    </button>
+  );
+}
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  size = "md",
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  size?: "sm" | "md";
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-border-base bg-surface-2 p-0.5" role="tablist">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          role="tab"
+          aria-selected={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "rounded-md font-medium transition-colors",
+            size === "md" ? "px-3 h-7.5 text-[13px]" : "px-2.5 h-6.5 text-xs",
+            value === o.value ? "bg-surface text-foreground shadow-sm border border-border-base" : "text-muted hover:text-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Progress ---------- */
+
+export function ProgressBar({ value, className, barClassName }: { value: number; className?: string; barClassName?: string }) {
+  return (
+    <div className={cn("h-1.5 w-full rounded-full bg-surface-2 overflow-hidden", className)} role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
+      <div className={cn("h-full rounded-full bg-accent transition-all", barClassName)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+    </div>
+  );
+}
+
+/* ---------- Empty state ---------- */
+
+export function EmptyState({
+  title,
+  hint,
+  actions,
+  icon,
+}: {
+  title: string;
+  hint?: string;
+  actions?: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-10 px-4 text-center">
+      {icon && <div className="text-faint mb-1">{icon}</div>}
+      <p className="text-sm font-medium">{title}</p>
+      {hint && <p className="text-[13px] text-muted max-w-xs">{hint}</p>}
+      {actions && <div className="flex gap-2 mt-2 flex-wrap justify-center">{actions}</div>}
+    </div>
+  );
+}
+
+export function Spinner({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-4 w-4 animate-spin rounded-full border-2 border-border-strong border-t-accent",
+        className,
+      )}
+      aria-label="Loading"
+    />
+  );
+}
+
+/* ---------- Modal / Drawer ---------- */
+
+function useMounted() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted;
+}
+
+function Overlay({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      {children}
+    </div>
+  );
+}
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const mounted = useMounted();
+  if (!open || !mounted) return null;
+  return createPortal(
+    <Overlay onClose={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={cn(
+          "absolute left-1/2 top-[8vh] -translate-x-1/2 w-[calc(100vw-2rem)] rounded-xl border border-border-base bg-surface shadow-2xl max-h-[84vh] overflow-y-auto",
+          wide ? "max-w-2xl" : "max-w-md",
+        )}
+      >
+        {title && (
+          <div className="flex items-center justify-between border-b border-border-base px-4 py-3 sticky top-0 bg-surface z-10 rounded-t-xl">
+            <h2 className="text-sm font-semibold">{title}</h2>
+            <button onClick={onClose} className="text-muted hover:text-foreground p-1 -m-1" aria-label="Close">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        <div className="p-4">{children}</div>
+      </div>
+    </Overlay>,
+    document.body,
+  );
+}
+
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children: ReactNode;
+}) {
+  const mounted = useMounted();
+  if (!open || !mounted) return null;
+  return createPortal(
+    <Overlay onClose={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="absolute right-0 top-0 h-full w-full sm:max-w-md bg-surface border-l border-border-base shadow-2xl flex flex-col animate-[slidein_.18s_ease-out]"
+        style={{ animationName: "none" }}
+      >
+        <div className="flex items-center justify-between border-b border-border-base px-4 py-3 shrink-0">
+          <div className="text-sm font-semibold min-w-0 truncate">{title}</div>
+          <button onClick={onClose} className="text-muted hover:text-foreground p-1 -m-1" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-y-auto p-4 grow">{children}</div>
+      </div>
+    </Overlay>,
+    document.body,
+  );
+}
+
+/* ---------- Dropdown menu ---------- */
+
+const MenuCtx = createContext<{ close: () => void } | null>(null);
+
+export function Menu({ trigger, children, align = "right" }: { trigger: ReactNode; children: ReactNode; align?: "left" | "right" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <span onClick={() => setOpen((v) => !v)}>{trigger}</span>
+      {open && (
+        <MenuCtx.Provider value={{ close: () => setOpen(false) }}>
+          <div
+            role="menu"
+            className={cn(
+              "absolute z-40 mt-1 min-w-44 rounded-lg border border-border-base bg-surface shadow-xl py-1",
+              align === "right" ? "right-0" : "left-0",
+            )}
+          >
+            {children}
+          </div>
+        </MenuCtx.Provider>
+      )}
+    </div>
+  );
+}
+
+export function MenuItem({
+  onClick,
+  children,
+  danger,
+}: {
+  onClick?: () => void;
+  children: ReactNode;
+  danger?: boolean;
+}) {
+  const ctx = useContext(MenuCtx);
+  return (
+    <button
+      role="menuitem"
+      onClick={() => {
+        ctx?.close();
+        onClick?.();
+      }}
+      className={cn(
+        "flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-left hover:bg-surface-2",
+        danger ? "text-rose-600 dark:text-rose-400" : "text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ---------- Toast ---------- */
+
+type Toast = { id: number; message: string; tone: "default" | "error" };
+const listeners = new Set<(t: Toast) => void>();
+let toastId = 0;
+
+export function toast(message: string, tone: "default" | "error" = "default") {
+  const t = { id: ++toastId, message, tone };
+  listeners.forEach((l) => l(t));
+}
+
+export function Toaster() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  useEffect(() => {
+    const l = (t: Toast) => {
+      setToasts((prev) => [...prev, t]);
+      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== t.id)), 3200);
+    };
+    listeners.add(l);
+    return () => void listeners.delete(l);
+  }, []);
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2 items-center pointer-events-none" aria-live="polite">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={cn(
+            "rounded-lg border px-3.5 py-2 text-[13px] shadow-lg bg-surface",
+            t.tone === "error" ? "border-rose-500/40 text-rose-600 dark:text-rose-400" : "border-border-base",
+          )}
+        >
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}

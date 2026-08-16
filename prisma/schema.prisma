@@ -1,0 +1,402 @@
+// CampusHub data model.
+// Sync-aware records carry `source` ("brightspace" | "manual"), an `externalId`
+// (the Brightspace entity id, used for dedupe on sync), `brightspaceRaw`
+// (last-synced values as JSON) and `overriddenFields` (JSON array of field
+// names the user edited locally — sync never silently overwrites these).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  preference    UserPreference?
+  enrollments   Enrollment[]
+  courses       Course[]
+  notes         Note[]
+  tasks         Task[]
+  events        CalendarEvent[]
+  tools         Tool[]
+  notifications Notification[]
+  syncLogs      SyncLog[]
+  studySessions StudySession[]
+}
+
+model UserPreference {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme             String  @default("system") // light | dark | system
+  widgetLayout      String? // JSON: [{ id, hidden }] in display order
+  syncMode          String  @default("manual") // manual | launch | interval
+  syncIntervalMins  Int     @default(30)
+  notificationPrefs String? // JSON: { deadlines: bool, announcements: bool, grades: bool, sync: bool, content: bool }
+  targetGrades      String? // JSON: { [courseId]: number }
+  lastSeenFeedAt    DateTime?
+}
+
+model BrightspaceConnection {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  // AES-256-GCM encrypted JSON: { accessToken, refreshToken, expiresAt }
+  tokens    String
+  updatedAt DateTime @updatedAt
+}
+
+model University {
+  id                 String  @id @default(cuid())
+  name               String
+  brightspaceBaseUrl String?
+  courses            Course[]
+}
+
+model Course {
+  id           String  @id @default(cuid())
+  userId       String
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id])
+
+  code        String
+  name        String
+  term        String  @default("Fall 2026")
+  description String?
+  color       String  @default("indigo")
+  officeHours String?
+  progress    Float   @default(0) // 0..1, share of course content/tasks done
+  brightspaceUrl String?
+
+  source           String  @default("manual") // brightspace | manual
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+  archived         Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  enrollments   Enrollment[]
+  contacts      Contact[]
+  modules       ContentModule[]
+  assignments   Assignment[]
+  quizzes       Quiz[]
+  announcements Announcement[]
+  gradeItems    GradeItem[]
+  notes         Note[]
+  events        CalendarEvent[]
+  tasks         Task[]
+  resources     Resource[]
+  studySessions StudySession[]
+}
+
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  role     String @default("student")
+
+  @@unique([userId, courseId])
+}
+
+model Contact {
+  id          String  @id @default(cuid())
+  courseId    String
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name        String
+  role        String // professor | ta
+  email       String?
+  office      String?
+  officeHours String?
+  phone       String?
+  brightspaceUrl String?
+
+  source           String  @default("manual")
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+}
+
+model ContentModule {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  order    Int    @default(0)
+
+  source     String  @default("manual")
+  externalId String? @unique
+  items      ContentItem[]
+}
+
+model ContentItem {
+  id       String        @id @default(cuid())
+  moduleId String
+  module   ContentModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title    String
+  type     String        @default("page") // file | link | page | video
+  url      String?
+  order    Int           @default(0)
+  updatedAt DateTime     @default(now())
+
+  source     String  @default("manual")
+  externalId String? @unique
+}
+
+model Assignment {
+  id       String  @id @default(cuid())
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title          String
+  description    String?
+  dueAt          DateTime?
+  weight         Float? // percent of final grade
+  status         String  @default("not_started") // not_started | in_progress | completed | submitted | overdue
+  completionPct  Int     @default(0)
+  estimatedHours Float?
+  difficulty     Int? // 1..5
+  priorityOverride String? // high | medium | low — user override of computed priority
+  notes          String?
+  brightspaceUrl String?
+
+  source           String  @default("manual")
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  submission    Submission?
+  linkedNotes   Note[]
+  studySessions StudySession[]
+  gradeItems    GradeItem[]
+}
+
+model Quiz {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title        String
+  kind         String  @default("quiz") // quiz | midterm | final | exam
+  startAt      DateTime?
+  durationMins Int?
+  location     String?
+  topics       String?
+  weight       Float?
+  status       String  @default("upcoming") // upcoming | completed | missed
+  priorityOverride String?
+  brightspaceUrl String?
+
+  source           String  @default("manual")
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  linkedNotes Note[]
+  gradeItems  GradeItem[]
+}
+
+model Announcement {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title    String
+  body     String
+  author   String?
+  postedAt DateTime @default(now())
+  read     Boolean  @default(false)
+  brightspaceUrl String?
+
+  source     String  @default("manual")
+  externalId String? @unique
+}
+
+model GradeItem {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name     String
+  category String  @default("assignment") // assignment | quiz | midterm | final | participation | project | other
+  weight   Float // percent of final grade
+  score    Float? // points earned, null = not graded yet
+  maxScore Float   @default(100)
+  gradedAt DateTime?
+
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  quizId       String?
+  quiz         Quiz?       @relation(fields: [quizId], references: [id], onDelete: SetNull)
+
+  source           String  @default("manual")
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+}
+
+model Submission {
+  id           String     @id @default(cuid())
+  assignmentId String     @unique
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  status      String    @default("not_submitted") // not_submitted | submitted | late | graded | returned
+  submittedAt DateTime?
+  grade       String?
+  feedback    String?
+  brightspaceUrl String?
+
+  source           String  @default("manual")
+  externalId       String? @unique
+  overriddenFields String?
+  brightspaceRaw   String?
+}
+
+model Note {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title  String
+  body   String @default("") // markdown
+  topic  String?
+  pinned Boolean @default(false)
+
+  courseId     String?
+  course       Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  quizId       String?
+  quiz         Quiz?       @relation(fields: [quizId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CalendarEvent {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  type        String  @default("personal") // class | personal | reminder | event
+  startAt     DateTime
+  endAt       DateTime?
+  allDay      Boolean @default(false)
+  location    String?
+  description String?
+  recurrence  String? // e.g. weekly:MO,WE
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  source     String  @default("manual")
+  externalId String? @unique
+}
+
+model Task {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title            String
+  kind             String  @default("task") // task | reading | study | reminder | project | presentation
+  dueAt            DateTime?
+  completed        Boolean @default(false)
+  priorityOverride String?
+  notes            String?
+  weight           Float?
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}
+
+model Resource {
+  id       String  @id @default(cuid())
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title       String
+  url         String
+  description String?
+
+  source     String  @default("manual")
+  externalId String? @unique
+}
+
+model Tool {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name    String
+  url     String
+  icon    String  @default("link") // lucide icon key
+  color   String  @default("neutral")
+  order   Int     @default(0)
+  pinned  Boolean @default(false)
+  builtin Boolean @default(false)
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type       String // new_assignment | deadline | new_quiz | new_announcement | grade_posted | content_updated | sync_error
+  title      String
+  body       String?
+  entityType String?
+  entityId   String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model SyncLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("running") // running | success | error
+  added      Int       @default(0)
+  updated    Int       @default(0)
+  removed    Int       @default(0)
+  errors     Int       @default(0)
+  details    String? // JSON: [{ entity, action, label, courseCode }]
+}
+
+model StudySession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  label     String?
+  mode      String   @default("25") // 25 | 50 | 90 | custom
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  minutes   Int      @default(0)
+  completed Boolean  @default(false)
+
+  courseId     String?
+  course       Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+}
