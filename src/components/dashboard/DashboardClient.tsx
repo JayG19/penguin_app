@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Eye, EyeOff, GripVertical, RotateCcw, Settings2 } from "lucide-react";
 import { Button, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -128,10 +128,13 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     setDragId(null);
   }
 
-  const greeting = (() => {
+  // Derived from the viewer's clock, which the server can't know: rendered
+  // after mount so SSR and hydration agree regardless of server timezone.
+  const [greeting, setGreeting] = useState("Welcome back");
+  useEffect(() => {
     const h = new Date().getHours();
-    return h < 5 ? "Burning the midnight oil" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  })();
+    setGreeting(h < 5 ? "Burning the midnight oil" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+  }, []);
 
   return (
     <div className="space-y-4">

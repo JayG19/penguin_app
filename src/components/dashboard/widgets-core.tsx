@@ -21,6 +21,10 @@ export function TodayWidget({ ctx }: { ctx: WidgetCtx }) {
   const { data, courseFilter } = ctx;
   const [now, setNow] = useState(new Date());
   useEffect(() => {
+    // Re-read the clock on mount: the server renders in its own timezone, so
+    // the first client paint corrects it (the nodes below opt out of the
+    // hydration diff for the same reason).
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
@@ -96,8 +100,8 @@ export function TodayWidget({ ctx }: { ctx: WidgetCtx }) {
       <div className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4 pb-3 border-b border-border-base">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Today</p>
-          <h2 className="text-lg font-semibold tracking-tight">{format(now, "EEEE, MMMM d")}</h2>
-          <p className="text-[13px] text-muted tabular-nums">{format(now, "h:mm a")} · {term}</p>
+          <h2 className="text-lg font-semibold tracking-tight" suppressHydrationWarning>{format(now, "EEEE, MMMM d")}</h2>
+          <p className="text-[13px] text-muted tabular-nums" suppressHydrationWarning>{format(now, "h:mm a")} · {term}</p>
         </div>
         <div className="flex gap-4 text-center">
           {[
