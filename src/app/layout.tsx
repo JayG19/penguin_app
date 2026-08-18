@@ -13,9 +13,25 @@ export const metadata: Metadata = {
 const themeInit = `
 (function () {
   try {
-    var t = localStorage.getItem("campushub-theme") || "system";
+    var raw = localStorage.getItem("campushub-appearance");
+    var a = raw ? JSON.parse(raw) : {};
+    var t = a.theme || localStorage.getItem("campushub-theme") || "system";
     var dark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    if (dark) document.documentElement.classList.add("dark");
+    var el = document.documentElement;
+    if (dark) el.classList.add("dark");
+    if (a.accent) {
+      el.dataset.accent = a.accent;
+      if (a.vars) {
+        el.style.setProperty("--accent-light", a.vars.light);
+        el.style.setProperty("--accent-light-soft", a.vars.lightSoft);
+        el.style.setProperty("--accent-dark", a.vars.dark);
+        el.style.setProperty("--accent-dark-soft", a.vars.darkSoft);
+      }
+    }
+    if (a.background) el.dataset.bg = a.background;
+    if (a.backgroundUrl) el.style.setProperty("--bg-image", 'url("' + a.backgroundUrl + '")');
+    if (a.priorityScheme) el.dataset.priority = a.priorityScheme;
+    if (a.density) el.dataset.density = a.density;
   } catch (e) {}
 })();
 `;

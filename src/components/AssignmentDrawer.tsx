@@ -6,11 +6,13 @@ import { ExternalLink, RotateCcw, StickyNote, Timer, Trash2 } from "lucide-react
 import { Badge, Button, Drawer, Label, PriorityBadge, Select, SourceBadge, Textarea, toast } from "@/components/ui";
 import type { AssignmentDTO } from "@/components/types";
 import { computePriority } from "@/lib/priority";
+import { RemindButton } from "@/components/nudges/RemindButton";
 import { cn, courseColor, fmtDate, relativeDue } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "not_started", label: "Not Started" },
   { value: "in_progress", label: "In Progress" },
+  { value: "final_check", label: "Final Check (QC)" },
   { value: "completed", label: "Completed" },
   { value: "submitted", label: "Submitted" },
   { value: "overdue", label: "Overdue" },
@@ -51,7 +53,7 @@ export function AssignmentDrawer({
     completionPct: current.completionPct,
     estimatedHours: current.estimatedHours,
     priorityOverride: current.priorityOverride,
-    completed: ["completed", "submitted"].includes(current.status),
+    status: current.status,
   });
 
   async function patch(body: Record<string, unknown>, refresh = true) {
@@ -158,7 +160,7 @@ export function AssignmentDrawer({
               value={current.priorityOverride ?? "auto"}
               onChange={(e) => patch({ priorityOverride: e.target.value === "auto" ? null : e.target.value })}
             >
-              <option value="auto">Auto ({computePriority({ ...current, priorityOverride: null, completed: false })})</option>
+              <option value="auto">Auto ({computePriority({ ...current, priorityOverride: null })})</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
@@ -180,6 +182,11 @@ export function AssignmentDrawer({
             onTouchEnd={() => patch({ completionPct: current.completionPct })}
             className="w-full accent-[var(--accent)]"
           />
+          {current.status === "final_check" && (
+            <p className="text-xs text-muted mt-1">
+              Written and ready — give it a final check, then mark it submitted.
+            </p>
+          )}
         </div>
 
         <div>
@@ -239,6 +246,7 @@ export function AssignmentDrawer({
           >
             <StickyNote size={14} /> Add Note
           </Button>
+          <RemindButton title={`${current.course.code}: ${current.title}`} entityType="assignment" entityId={current.id} dueAt={current.dueAt} />
           <Button variant="ghost" size="sm" onClick={remove} className="text-rose-600 dark:text-rose-400">
             <Trash2 size={14} /> Delete
           </Button>

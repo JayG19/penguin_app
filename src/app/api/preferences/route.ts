@@ -10,6 +10,12 @@ const schema = z.object({
   notificationPrefs: z.string().optional(),
   targetGrades: z.string().optional(),
   lastSeenFeedAt: z.string().datetime().optional(),
+  accent: z.string().max(24).optional(),
+  background: z.enum(["plain", "mesh", "grid", "glow", "custom"]).optional(),
+  backgroundUrl: z.string().max(2048).nullable().optional(),
+  priorityScheme: z.enum(["classic", "colorblind", "mono"]).optional(),
+  density: z.enum(["comfortable", "compact"]).optional(),
+  nudgePrefs: z.string().optional(),
 });
 
 export const GET = withAuth(async (_req, user) => {

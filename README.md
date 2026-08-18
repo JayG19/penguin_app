@@ -77,7 +77,7 @@ Core models (see `prisma/schema.prisma`): `User`, `UserPreference`, `University`
 `Enrollment`, `Contact` (professors/TAs), `ContentModule` + `ContentItem`, `Assignment`,
 `Submission` (1:1 with assignment), `Quiz` (kind: quiz/midterm/final/exam), `Announcement`,
 `GradeItem`, `Note`, `CalendarEvent`, `Task`, `Resource`, `Tool`, `Notification`, `SyncLog`,
-`StudySession`, `BrightspaceConnection`.
+`StudySession`, `Nudge`, `BrightspaceConnection`.
 
 Every syncable record carries:
 
@@ -85,6 +85,42 @@ Every syncable record carries:
 - `externalId` — unique Brightspace entity id, used to de-duplicate on every sync
 - `brightspaceRaw` — the last-synced values (JSON)
 - `overriddenFields` — JSON array of field names the user edited locally
+
+## Nudges
+
+Reminders come from two directions, both stored as `Nudge` rows:
+
+- **Automatic** — `scanNudges()` (`src/lib/nudges/engine.ts`) derives reminders from live
+  deadlines at each configured lead time (default 3 days / 1 day / 3 hours), plus one-shot nudges
+  for new announcements and freshly posted grades. Each (item, lead time) pair maps to one stable
+  row, so re-scanning is idempotent: a dismissed nudge never returns, and a deadline that moves
+  drags its pending reminder with it. Quiet hours push a reminder to the end of the window.
+- **Manual** — the **Remind me** button on any assignment, exam or submission sets a one-off
+  reminder (presets relative to the due date, or a custom date/time).
+
+Due nudges appear as a small stack in the corner with **Open · 1h · Tomorrow · Got it**. Lead
+times, categories, a minimum-weight threshold and quiet hours are all configurable in Settings.
+
+## Priority model
+
+`computePriority()` scales an item's **weight by its urgency** rather than adding the two, so a
+25% midterm outranks a five-minute errand that happens to be due sooner. Two states sit outside
+the high/medium/low scale:
+
+- **Final check** — work at 100% completion that hasn't been submitted yet. Reaching 100% promotes
+  the status to `final_check` automatically; it never reads as "low priority" just because the
+  writing is done.
+- **Done** — submitted or completed, and out of the queue entirely.
+
+Manual priority overrides always win, and the colour scheme (classic / accessible / monochrome) is
+a user preference.
+
+## Appearance
+
+Theme (light/dark/system), accent colour, background (plain, aurora, grid, glow or a custom image
+URL), priority colour scheme and density are stored per user and applied via CSS custom properties
+on the document root. A small pre-hydration script restores them from `localStorage` before first
+paint, so there's no flash of the wrong theme.
 
 ## Brightspace integration approach
 

@@ -30,6 +30,7 @@ model User {
   notifications Notification[]
   syncLogs      SyncLog[]
   studySessions StudySession[]
+  nudges        Nudge[]
 }
 
 model UserPreference {
@@ -43,6 +44,38 @@ model UserPreference {
   notificationPrefs String? // JSON: { deadlines: bool, announcements: bool, grades: bool, sync: bool, content: bool }
   targetGrades      String? // JSON: { [courseId]: number }
   lastSeenFeedAt    DateTime?
+
+  // Appearance
+  accent         String  @default("indigo") // accent palette key
+  background     String  @default("plain")  // plain | mesh | grid | glow | custom
+  backgroundUrl  String? // used when background = "custom"
+  priorityScheme String  @default("classic") // classic | colorblind | mono
+  density        String  @default("comfortable") // comfortable | compact
+
+  // Nudges: JSON { enabled, leadHours: number[], categories: {...}, quietStart, quietEnd }
+  nudgePrefs String?
+}
+
+model Nudge {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title      String
+  body       String?
+  remindAt   DateTime
+  kind       String  @default("manual") // manual | auto
+  category   String  @default("custom") // deadline | exam | announcement | grade | custom
+  entityType String? // assignment | quiz | announcement | task | course
+  entityId   String?
+
+  dismissed     Boolean   @default(false)
+  acknowledged  Boolean   @default(false)
+  snoozedUntil  DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, remindAt])
+  @@unique([userId, entityType, entityId, category, kind])
 }
 
 model BrightspaceConnection {

@@ -11,9 +11,14 @@
   --foreground: #18181b;
   --muted: #71717a;
   --faint: #a1a1aa;
-  --accent: #4f46e5;
-  --accent-soft: #eef2ff;
-  --ring: rgba(79, 70, 229, 0.35);
+  --accent-light: #4f46e5;
+  --accent-light-soft: #eef2ff;
+  --accent-dark: #818cf8;
+  --accent-dark-soft: rgba(99, 102, 241, 0.12);
+  --accent: var(--accent-light);
+  --accent-soft: var(--accent-light-soft);
+  --ring: color-mix(in srgb, var(--accent) 40%, transparent);
+  --bg-image: none;
 }
 
 .dark {
@@ -25,9 +30,8 @@
   --foreground: #f4f4f5;
   --muted: #9d9da7;
   --faint: #6b6b76;
-  --accent: #818cf8;
-  --accent-soft: rgba(99, 102, 241, 0.12);
-  --ring: rgba(129, 140, 248, 0.4);
+  --accent: var(--accent-dark);
+  --accent-soft: var(--accent-dark-soft);
 }
 
 @theme inline {
@@ -120,3 +124,108 @@ body {
 }
 .prose-notes a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .prose-notes input[type="checkbox"] { margin-right: 0.4rem; accent-color: var(--accent); }
+
+
+/* ---------- Appearance: backgrounds ---------- */
+
+body {
+  background-attachment: fixed;
+}
+
+:root[data-bg="mesh"] body {
+  background-image:
+    radial-gradient(60rem 40rem at 8% -10%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    radial-gradient(50rem 35rem at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
+    radial-gradient(45rem 30rem at 50% 110%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%);
+}
+
+:root[data-bg="grid"] body {
+  background-image: radial-gradient(var(--border-strong) 0.8px, transparent 0.8px);
+  background-size: 22px 22px;
+}
+
+:root[data-bg="glow"] body {
+  background-image: radial-gradient(70rem 45rem at 50% -20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+}
+
+:root[data-bg="custom"] body {
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Keep content legible over a photo background. */
+:root[data-bg="custom"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ---------- Appearance: density ---------- */
+
+:root[data-density="compact"] {
+  --density-gap: 0.65rem;
+}
+:root {
+  --density-gap: 1rem;
+}
+
+/* ---------- Priority colour schemes ---------- */
+/* Scoped to any element, not just :root, so a settings preview can show a
+   scheme other than the one currently active. */
+
+:root,
+[data-priority="classic"] {
+  --prio-high-bg: rgba(244, 63, 94, 0.12);
+  --prio-high-fg: #e11d48;
+  --prio-med-bg: rgba(245, 158, 11, 0.14);
+  --prio-med-fg: #b45309;
+  --prio-low-bg: var(--surface-2);
+  --prio-low-fg: var(--muted);
+  --prio-review-bg: rgba(139, 92, 246, 0.14);
+  --prio-review-fg: #7c3aed;
+}
+.dark,
+.dark [data-priority="classic"] {
+  --prio-high-fg: #fb7185;
+  --prio-med-fg: #fbbf24;
+  --prio-review-fg: #a78bfa;
+}
+
+[data-priority="colorblind"] {
+  --prio-high-bg: rgba(234, 88, 12, 0.16);
+  --prio-high-fg: #c2410c;
+  --prio-med-bg: rgba(2, 132, 199, 0.14);
+  --prio-med-fg: #0369a1;
+  --prio-review-bg: rgba(109, 40, 217, 0.14);
+  --prio-review-fg: #6d28d9;
+}
+.dark[data-priority="colorblind"],
+.dark [data-priority="colorblind"] {
+  --prio-high-fg: #fb923c;
+  --prio-med-fg: #38bdf8;
+  --prio-review-fg: #c4b5fd;
+}
+
+[data-priority="mono"] {
+  --prio-high-bg: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --prio-high-fg: var(--foreground);
+  --prio-med-bg: color-mix(in srgb, var(--foreground) 9%, transparent);
+  --prio-med-fg: var(--muted);
+  --prio-review-bg: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --prio-review-fg: var(--foreground);
+}
+
+.prio-high { background: var(--prio-high-bg); color: var(--prio-high-fg); }
+.prio-medium { background: var(--prio-med-bg); color: var(--prio-med-fg); }
+.prio-low { background: var(--prio-low-bg); color: var(--prio-low-fg); }
+.prio-review { background: var(--prio-review-bg); color: var(--prio-review-fg); }
+.prio-done { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.dark .prio-done { color: #34d399; }
+
+/* Sticky-safe drag affordance for dashboard widgets */
+.widget-dragging { opacity: 0.45; }
+.widget-drop-target { outline: 2px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 4px; border-radius: 0.75rem; }

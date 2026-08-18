@@ -6,12 +6,15 @@ import { Topbar } from "@/components/shell/Topbar";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { QuickAdd } from "@/components/shell/QuickAdd";
 import { FocusProvider } from "@/components/focus/FocusProvider";
+import { NudgeProvider } from "@/components/nudges/NudgeProvider";
+import { AppearanceProvider } from "@/components/AppearanceProvider";
 import { Toaster } from "@/components/ui";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const preference = await db.userPreference.findUnique({ where: { userId: user.id } });
   const [courses, unreadAnnouncements] = await Promise.all([
     db.course.findMany({
       where: { userId: user.id, archived: false },
@@ -23,8 +26,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const unread = await db.announcement.count({ where: { course: { userId: user.id }, read: false } });
   void unreadAnnouncements;
 
+  const appearance = {
+    theme: preference?.theme ?? "system",
+    accent: preference?.accent ?? "indigo",
+    background: preference?.background ?? "plain",
+    backgroundUrl: preference?.backgroundUrl ?? null,
+    priorityScheme: preference?.priorityScheme ?? "classic",
+    density: preference?.density ?? "comfortable",
+  };
+
   return (
     <FocusProvider>
+      <NudgeProvider>
+      <AppearanceProvider appearance={appearance} />
       <div className="flex min-h-dvh">
         <Sidebar unreadAnnouncements={unread} />
         <div className="flex min-w-0 grow flex-col">
@@ -38,6 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <QuickAdd />
       <CommandPalette />
       <Toaster />
+      </NudgeProvider>
     </FocusProvider>
   );
 }

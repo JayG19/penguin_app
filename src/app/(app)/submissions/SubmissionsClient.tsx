@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ClipboardCheck, ExternalLink } from "lucide-react";
-import { Badge, Card, EmptyState, Select, SourceBadge, toast } from "@/components/ui";
+import { SubmissionDrawer } from "@/components/SubmissionDrawer";
+import { Badge, Card, EmptyState, FilterMenu, SourceBadge } from "@/components/ui";
 import type { AssignmentDTO, CourseDTO } from "@/components/types";
 import { cn, courseColor, fmtDate } from "@/lib/utils";
 
@@ -20,9 +20,9 @@ const STATUS_TONE: Record<string, "neutral" | "green" | "amber" | "blue" | "viol
 };
 
 export function SubmissionsClient({ assignments, courses }: { assignments: AssignmentDTO[]; courses: CourseDTO[] }) {
-  const router = useRouter();
   const [courseFilter, setCourseFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [open, setOpen] = useState<AssignmentDTO | null>(null);
 
   const rows = useMemo(
     () =>
@@ -32,18 +32,6 @@ export function SubmissionsClient({ assignments, courses }: { assignments: Assig
     [assignments, courseFilter, statusFilter],
   );
 
-  async function setStatus(a: AssignmentDTO, status: string) {
-    const res = await fetch(`/api/submissions/${a.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
-      toast("Submission status updated");
-      router.refresh();
-    }
-  }
-
   return (
     <div className="space-y-4">
       <div>
@@ -51,15 +39,28 @@ export function SubmissionsClient({ assignments, courses }: { assignments: Assig
         <p className="text-[13px] text-muted">Dropbox status, grades and feedback for every assignment.</p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-auto" aria-label="Filter by course">
-          <option value="">All courses</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-        </Select>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-auto" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </Select>
+      <div className="flex gap-2 flex-wrap items-center">
+        <FilterMenu
+          groups={[
+            {
+              id: "course",
+              label: "Course",
+              value: courseFilter,
+              allValue: "",
+              onChange: setCourseFilter,
+              options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+            },
+            {
+              id: "status",
+              label: "Status",
+              value: statusFilter,
+              allValue: "",
+              onChange: setStatusFilter,
+              options: [{ value: "", label: "All statuses" }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value: v, label: l }))],
+            },
+          ]}
+        />
+        <span className="text-xs text-muted">{rows.length} of {assignments.length} shown</span>
       </div>
 
       {rows.length === 0 ? (
@@ -82,7 +83,13 @@ export function SubmissionsClient({ assignments, courses }: { assignments: Assig
                 const sub = a.submission;
                 const status = sub?.status ?? "not_submitted";
                 return (
-                  <tr key={a.id} className="border-b border-border-base last:border-0 hover:bg-surface-2/50">
+                  <tr
+                    key={a.id}
+                    onClick={() => setOpen(a)}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setOpen(a)}
+                    className="border-b border-border-base last:border-0 hover:bg-surface-2/50 cursor-pointer"
+                  >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <span className={cn("h-2 w-2 rounded-full shrink-0", courseColor(a.course.color).dot)} />
@@ -97,22 +104,12 @@ export function SubmissionsClient({ assignments, courses }: { assignments: Assig
                     <td className="px-2 py-2.5 text-muted whitespace-nowrap">{a.dueAt ? fmtDate(a.dueAt) : "—"}</td>
                     <td className="px-2 py-2.5 text-muted whitespace-nowrap">{sub?.submittedAt ? fmtDate(sub.submittedAt, true) : "—"}</td>
                     <td className="px-2 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(a, e.target.value)}
-                          className="h-6 rounded border border-border-base bg-surface text-[11px] px-1"
-                          aria-label={`Update status for ${a.title}`}
-                        >
-                          {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                        </select>
-                      </div>
+                      <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
                     </td>
                     <td className="px-2 py-2.5 text-right font-medium tabular-nums whitespace-nowrap">{sub?.grade ?? "—"}</td>
                     <td className="px-4 py-2.5 text-right">
                       {a.brightspaceUrl ? (
-                        <a href={a.brightspaceUrl} target="_blank" rel="noopener noreferrer" className="text-muted hover:text-accent inline-block" aria-label="Open dropbox in Brightspace">
+                        <a href={a.brightspaceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted hover:text-accent inline-block" aria-label="Open dropbox in Brightspace">
                           <ExternalLink size={14} />
                         </a>
                       ) : (
@@ -126,6 +123,8 @@ export function SubmissionsClient({ assignments, courses }: { assignments: Assig
           </table>
         </Card>
       )}
+
+      <SubmissionDrawer assignment={open} onClose={() => setOpen(null)} />
     </div>
   );
 }

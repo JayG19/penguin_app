@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import {
   addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Pause, Play, Send, Square, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Pause, Play, Square } from "lucide-react";
 import { Button, Card, CardHeader, EmptyState, Input, Segmented, Select, Textarea, toast } from "@/components/ui";
 import { cn, courseColor, fmtMinutes } from "@/lib/utils";
 import { projectedFinal, requiredOnRemaining, summarizeGrades } from "@/lib/grades";
@@ -194,77 +194,6 @@ export function GradeWidget({ ctx }: { ctx: WidgetCtx }) {
         <Link href={`/courses/${active}?tab=grades`} className="text-xs text-accent hover:underline mt-1 inline-block">
           Open grade dashboard
         </Link>
-      </div>
-    </Card>
-  );
-}
-
-/* ================= Quick capture ================= */
-
-export function QuickCaptureWidget({ ctx }: { ctx: WidgetCtx }) {
-  void ctx;
-  const router = useRouter();
-  const [text, setText] = useState("");
-  const [preview, setPreview] = useState<{ title: string; dueAt: string | null; course: { id: string; code: string } | null } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function parse() {
-    if (!text.trim()) return;
-    setBusy(true);
-    const res = await fetch("/api/quick-capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-    if (res.ok) setPreview(await res.json());
-    setBusy(false);
-  }
-
-  async function confirm() {
-    if (!preview) return;
-    setBusy(true);
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: preview.title, dueAt: preview.dueAt, courseId: preview.course?.id ?? null }),
-    });
-    toast("Task created");
-    setText("");
-    setPreview(null);
-    setBusy(false);
-    router.refresh();
-  }
-
-  return (
-    <Card>
-      <CardHeader title="Quick capture" action={<Sparkles size={14} className="text-faint" />} />
-      <div className="px-4 pb-4">
-        <form
-          onSubmit={(e) => { e.preventDefault(); parse(); }}
-          className="flex gap-2"
-        >
-          <Input
-            value={text}
-            onChange={(e) => { setText(e.target.value); setPreview(null); }}
-            placeholder="Finish analytics assignment tomorrow at 7pm"
-            aria-label="Quick capture"
-          />
-          <Button type="submit" variant="secondary" disabled={busy || !text.trim()} aria-label="Parse">
-            <Send size={14} />
-          </Button>
-        </form>
-        {preview && (
-          <div className="mt-2.5 rounded-lg border border-border-base bg-surface-2 p-3">
-            <p className="text-[13px] font-medium">{preview.title}</p>
-            <p className="text-xs text-muted mt-0.5">
-              {preview.dueAt ? `Due ${format(new Date(preview.dueAt), "MMM d, h:mm a")}` : "No due date detected"}
-              {preview.course ? ` · ${preview.course.code}` : ""}
-            </p>
-            <div className="flex gap-2 mt-2">
-              <Button size="xs" variant="primary" onClick={confirm} disabled={busy}>Save task</Button>
-              <Button size="xs" variant="ghost" onClick={() => setPreview(null)}>Discard</Button>
-            </div>
-          </div>
-        )}
-        {!preview && (
-          <p className="text-[11px] text-faint mt-2">Type naturally — dates like &ldquo;friday&rdquo;, &ldquo;sept 21&rdquo; or &ldquo;in 3 days&rdquo; are detected.</p>
-        )}
       </div>
     </Card>
   );

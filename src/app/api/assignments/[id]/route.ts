@@ -10,7 +10,7 @@ const patchSchema = z.object({
   weight: z.number().min(0).max(100).nullable().optional(),
   estimatedHours: z.number().min(0).nullable().optional(),
   difficulty: z.number().int().min(1).max(5).nullable().optional(),
-  status: z.enum(["not_started", "in_progress", "completed", "submitted", "overdue"]).optional(),
+  status: z.enum(["not_started", "in_progress", "final_check", "completed", "submitted", "overdue"]).optional(),
   completionPct: z.number().int().min(0).max(100).optional(),
   priorityOverride: z.enum(["high", "medium", "low"]).nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -37,6 +37,17 @@ export const PATCH = withAuth(async (req, user, ctx: IdCtx) => {
   const updates: Record<string, unknown> = { ...body };
   if (body.dueAt !== undefined) updates.dueAt = body.dueAt ? new Date(body.dueAt) : null;
   if (body.status === "completed" || body.status === "submitted") updates.completionPct = 100;
+
+  // Hitting 100% without submitting means the work is written but unchecked:
+  // move it to final check rather than leaving it looking unstarted.
+  const nextPct = (updates.completionPct as number | undefined) ?? existing.completionPct;
+  const nextStatus = (updates.status as string | undefined) ?? existing.status;
+  if (nextPct >= 100 && ["not_started", "in_progress"].includes(nextStatus)) {
+    updates.status = "final_check";
+  }
+  if (nextPct < 100 && nextStatus === "final_check" && body.status === undefined) {
+    updates.status = "in_progress";
+  }
 
   const overriddenFields = trackOverrides("assignment", existing, updates);
   const assignment = await db.assignment.update({

@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Pin, Plus, Search, StickyNote, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, HelpCircle, Pin, Plus, Search, StickyNote, Trash2 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Input, Label, Select, Textarea, toast } from "@/components/ui";
 import type { CourseDTO, NoteDTO } from "@/components/types";
 import { renderMarkdown } from "@/lib/markdown";
@@ -26,6 +26,7 @@ export function NotesClient({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ title: string; body: string; topic: string; courseId: string; assignmentId: string; quizId: string } | null>(null);
   const [preview, setPreview] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => setNotes(initialNotes), [initialNotes]);
 
@@ -203,11 +204,16 @@ export function NotesClient({
                 </Select>
               </div>
             </div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Button size="xs" variant={preview ? "outline" : "secondary"} onClick={() => setPreview(false)}>Write</Button>
               <Button size="xs" variant={preview ? "secondary" : "outline"} onClick={() => setPreview(true)}>Preview</Button>
-              <span className="text-[11px] text-faint ml-auto"># headings · - [ ] checklists · **bold** · `code` · links</span>
+              <span className="grow" />
+              <Button size="xs" variant="ghost" onClick={() => setShowGuide((v) => !v)} aria-expanded={showGuide}>
+                <HelpCircle size={12} /> Formatting help
+                {showGuide ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </Button>
             </div>
+            {showGuide && <FormattingGuide onInsert={(snippet) => setDraft({ ...draft, body: draft.body + (draft.body.endsWith("\n") || !draft.body ? "" : "\n") + snippet })} />}
             {preview ? (
               <div className="prose-notes min-h-64 rounded-lg border border-border-base bg-surface-2/50 px-4 py-3 text-[13px]" dangerouslySetInnerHTML={{ __html: renderMarkdown(draft.body) }} />
             ) : (
@@ -235,6 +241,46 @@ export function NotesClient({
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Cheat sheet for the note syntax, with one-click insertion of each pattern. */
+function FormattingGuide({ onInsert }: { onInsert: (snippet: string) => void }) {
+  const ROWS: { label: string; syntax: string; snippet: string; hint?: string }[] = [
+    { label: "Heading", syntax: "# Big heading", snippet: "# Heading\n", hint: "## and ### for smaller" },
+    { label: "Bold", syntax: "**important**", snippet: "**important** " },
+    { label: "Italic", syntax: "*emphasis*", snippet: "*emphasis* " },
+    { label: "Bullet list", syntax: "- point", snippet: "- First point\n- Second point\n" },
+    { label: "Numbered list", syntax: "1. step", snippet: "1. First step\n2. Second step\n" },
+    { label: "Checklist", syntax: "- [ ] to do", snippet: "- [ ] To do\n- [x] Done\n", hint: "[x] renders as ticked" },
+    { label: "Quote", syntax: "> professor said…", snippet: "> Quote or key point\n" },
+    { label: "Inline code", syntax: "`variable`", snippet: "`code` " },
+    { label: "Code block", syntax: "``` … ```", snippet: "```\nyour code here\n```\n" },
+    { label: "Link", syntax: "[text](https://…)", snippet: "[link text](https://example.com) " },
+    { label: "Image", syntax: "![alt](https://…)", snippet: "![alt text](https://example.com/image.png)\n" },
+  ];
+  return (
+    <div className="mb-2 rounded-lg border border-border-base bg-surface-2/50 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted mb-2">
+        Formatting — click any row to insert it
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+        {ROWS.map((r) => (
+          <button
+            key={r.label}
+            onClick={() => onInsert(r.snippet)}
+            className="flex items-baseline gap-2 rounded-md px-2 py-1 text-left hover:bg-surface-2"
+            title={r.hint ?? `Insert ${r.label.toLowerCase()}`}
+          >
+            <span className="w-24 shrink-0 text-[11px] text-muted">{r.label}</span>
+            <code className="font-mono text-[11px] text-foreground truncate">{r.syntax}</code>
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-faint mt-2">
+        Notes are searchable, and can be linked to a course, assignment or exam using the selectors above.
+      </p>
     </div>
   );
 }

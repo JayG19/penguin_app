@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -99,12 +99,27 @@ export function SourceBadge({ source }: { source: string }) {
 }
 
 export function PriorityBadge({ priority, overridden }: { priority: string; overridden?: boolean }) {
-  const tone = priority === "high" ? "red" : priority === "medium" ? "amber" : "neutral";
+  const label =
+    priority === "review" ? "Final check" : priority === "done" ? "Done" : priority;
+  const title =
+    priority === "review"
+      ? "Work is finished — needs a final check before submitting"
+      : priority === "done"
+        ? "Submitted or completed"
+        : overridden
+          ? "Priority set manually"
+          : "Priority computed from weight & deadline";
   return (
-    <Badge tone={tone} title={overridden ? "Priority set manually" : "Priority computed from weight & deadline"}>
-      {priority}
-      {overridden ? " •" : ""}
-    </Badge>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap",
+        `prio-${priority}`,
+      )}
+      title={title}
+    >
+      {label}
+      {overridden && priority !== "done" && priority !== "review" ? " •" : ""}
+    </span>
   );
 }
 
@@ -156,10 +171,12 @@ export function Switch({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -167,17 +184,17 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-5.5 w-10 rounded-full transition-colors shrink-0",
+        "relative inline-flex shrink-0 items-center rounded-full transition-colors disabled:opacity-50",
         checked ? "bg-accent" : "bg-border-strong",
       )}
+      style={{ width: 40, height: 22, padding: 0 }}
     >
       <span
-        className={cn(
-          "absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-5" : "translate-x-0.5",
-        )}
+        className="absolute rounded-full bg-white shadow-sm transition-[left] duration-150"
+        style={{ width: 18, height: 18, top: 2, left: checked ? 20 : 2 }}
       />
     </button>
   );
@@ -212,6 +229,101 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/* ---------- Checkbox ---------- */
+
+export function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+  label,
+  className,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!indeterminate && !checked;
+  }, [indeterminate, checked]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      aria-label={label}
+      onChange={(e) => onChange(e.target.checked)}
+      className={cn("h-4 w-4 rounded border-border-strong accent-[var(--accent)] cursor-pointer", className)}
+    />
+  );
+}
+
+/* ---------- Filter menu ---------- */
+
+export interface FilterGroup<T extends string = string> {
+  id: string;
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+  /** Value that counts as "no filter applied". */
+  allValue: T;
+}
+
+/**
+ * One control standing in for several selects: a button that opens a popover
+ * with each group, and shows how many filters are currently narrowing results.
+ */
+export function FilterMenu({ groups, className }: { groups: FilterGroup[]; className?: string }) {
+  const active = groups.filter((g) => g.value !== g.allValue);
+  return (
+    <Menu
+      align="left"
+      trigger={
+        <Button size="sm" variant={active.length ? "primary" : "outline"} className={className}>
+          <SlidersHorizontal size={13} />
+          Filter
+          {active.length > 0 && (
+            <span className="ml-0.5 rounded-full bg-white/25 px-1.5 text-[10px] font-semibold tabular-nums">
+              {active.length}
+            </span>
+          )}
+        </Button>
+      }
+    >
+      <div className="w-60 p-1">
+        {groups.map((g) => (
+          <div key={g.id} className="px-2 py-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted mb-1">{g.label}</p>
+            <select
+              value={g.value}
+              onChange={(e) => g.onChange(e.target.value)}
+              className="h-8 w-full rounded-lg border border-border-base bg-surface px-2 text-[13px]"
+              aria-label={g.label}
+            >
+              {g.options.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+        {active.length > 0 && (
+          <div className="border-t border-border-base mt-1 pt-1">
+            <button
+              onClick={() => groups.forEach((g) => g.onChange(g.allValue))}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-muted hover:bg-surface-2 hover:text-foreground rounded-md"
+            >
+              <X size={13} /> Clear filters
+            </button>
+          </div>
+        )}
+      </div>
+    </Menu>
   );
 }
 

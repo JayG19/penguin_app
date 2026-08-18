@@ -10,7 +10,7 @@ const createSchema = z.object({
   weight: z.number().min(0).max(100).nullable().optional(),
   estimatedHours: z.number().min(0).nullable().optional(),
   difficulty: z.number().int().min(1).max(5).nullable().optional(),
-  status: z.enum(["not_started", "in_progress", "completed", "submitted", "overdue"]).optional(),
+  status: z.enum(["not_started", "in_progress", "final_check", "completed", "submitted", "overdue"]).optional(),
 });
 
 export const GET = withAuth(async (req, user) => {

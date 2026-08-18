@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { BellRing, Check, ExternalLink } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Segmented, Select, SourceBadge } from "@/components/ui";
+import { BellRing, Check, ExternalLink, MailOpen } from "lucide-react";
+import { Badge, Button, Card, Checkbox, EmptyState, Segmented, Select, SourceBadge, toast } from "@/components/ui";
 import type { AnnouncementDTO, CourseDTO } from "@/components/types";
 import { cn, courseColor, timeAgo } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
   const [courseFilter, setCourseFilter] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const openId = params.get("open");
@@ -43,7 +44,39 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
     router.refresh();
   }
 
+  function toggleOne(id: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(on: boolean) {
+    setSelected(on ? new Set(filtered.map((a) => a.id)) : new Set());
+  }
+
+  /** Applies read/unread to every checked row, then clears the selection. */
+  async function markSelected(read: boolean) {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/announcements/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ read }),
+        }),
+      ),
+    );
+    toast(`${ids.length} marked as ${read ? "read" : "unread"}`);
+    setSelected(new Set());
+    router.refresh();
+  }
+
   const unreadCount = announcements.filter((a) => !a.read).length;
+  const allSelected = filtered.length > 0 && filtered.every((a) => selected.has(a.id));
 
   return (
     <div className="space-y-4">
@@ -65,7 +98,32 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
           <option value="">All courses</option>
           {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
         </Select>
+        {filtered.length > 0 && (
+          <label className="ml-1 flex items-center gap-2 text-[13px] text-muted cursor-pointer select-none">
+            <Checkbox
+              checked={allSelected}
+              indeterminate={selected.size > 0 && !allSelected}
+              onChange={toggleAll}
+              label="Select all announcements"
+            />
+            Select all
+          </label>
+        )}
       </div>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 flex-wrap">
+          <span className="text-[13px] font-medium text-accent">{selected.size} selected</span>
+          <span className="grow" />
+          <Button size="xs" variant="primary" onClick={() => markSelected(true)}>
+            <Check size={12} /> Mark as read
+          </Button>
+          <Button size="xs" variant="outline" onClick={() => markSelected(false)}>
+            <MailOpen size={12} /> Mark as unread
+          </Button>
+          <Button size="xs" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <Card>
@@ -79,6 +137,14 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
         <div className="space-y-2">
           {filtered.map((a) => (
             <Card key={a.id} className={cn("px-4 py-3", !a.read && "border-l-2 border-l-accent")}>
+              <div className="flex items-start gap-3">
+              <span className="pt-1.5" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selected.has(a.id)}
+                  onChange={(on) => toggleOne(a.id, on)}
+                  label={`Select ${a.title}`}
+                />
+              </span>
               <button
                 className="flex w-full items-start gap-3 text-left"
                 onClick={() => {
@@ -98,6 +164,7 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
                   {a.author && <span className="block text-xs text-muted mt-0.5">{a.author}</span>}
                 </span>
               </button>
+              </div>
               {expanded === a.id && (
                 <div className="ml-5 mt-2.5 pt-2.5 border-t border-border-base">
                   <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{a.body}</p>

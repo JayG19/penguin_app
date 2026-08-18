@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Bell, Check, ChevronDown, LogOut, Moon, Search, Sun, Monitor, GraduationCap } from "lucide-react";
 import { Menu, MenuItem, toast } from "@/components/ui";
 import { cn, courseColor, timeAgo } from "@/lib/utils";
+import { applyAppearance } from "@/lib/appearance";
 
 interface CourseLite {
   id: string;
@@ -50,9 +51,13 @@ export function Topbar({ userName, courses }: { userName: string; courses: Cours
 
   function applyTheme(next: string) {
     setTheme(next);
-    localStorage.setItem("campushub-theme", next);
-    const dark = next === "dark" || (next === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.classList.toggle("dark", dark);
+    applyAppearance({ theme: next });
+    try {
+      localStorage.setItem("campushub-theme", next);
+      const raw = localStorage.getItem("campushub-appearance");
+      const parsed = raw ? JSON.parse(raw) : {};
+      localStorage.setItem("campushub-appearance", JSON.stringify({ ...parsed, theme: next }));
+    } catch {}
     fetch("/api/preferences", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ theme: next }) }).catch(() => {});
   }
 

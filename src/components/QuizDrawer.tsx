@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { useEffect, useState } from "react";
-import { ExternalLink, MapPin, RotateCcw, StickyNote, Timer, Trash2 } from "lucide-react";
-import { Badge, Button, Drawer, Label, Select, SourceBadge, toast } from "@/components/ui";
+import { ExternalLink, RotateCcw, StickyNote, Timer, Trash2 } from "lucide-react";
+import { Badge, Button, Drawer, Input, Label, Select, SourceBadge, toast } from "@/components/ui";
 import type { QuizDTO } from "@/components/types";
 import { cn, countdown, courseColor, fmtDate } from "@/lib/utils";
+import { RemindButton } from "@/components/nudges/RemindButton";
 
 const KIND_LABEL: Record<string, string> = { quiz: "Quiz", midterm: "Midterm", final: "Final Exam", exam: "Exam" };
 
@@ -98,28 +100,36 @@ export function QuizDrawer({
           </div>
         )}
 
-        <dl className="space-y-2 text-[13px]">
-          {current.location && (
-            <div className="flex items-center gap-2">
-              <MapPin size={14} className="text-muted" />
-              <span>{current.location}</span>
-            </div>
-          )}
-          {current.topics && (
-            <div>
-              <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted mb-0.5">Topics</dt>
-              <dd className="leading-relaxed">{current.topics}</dd>
-            </div>
-          )}
-        </dl>
+        <Schedule current={current} patch={patch} />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="qd-status">Status</Label>
+            <Select id="qd-status" value={current.status} onChange={(e) => patch({ status: e.target.value })}>
+              <option value="upcoming">Upcoming</option>
+              <option value="completed">Completed</option>
+              <option value="missed">Missed</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="qd-kind">Type</Label>
+            <Select id="qd-kind" value={current.kind} onChange={(e) => patch({ kind: e.target.value })}>
+              <option value="quiz">Quiz</option>
+              <option value="midterm">Midterm</option>
+              <option value="final">Final Exam</option>
+              <option value="exam">Exam</option>
+            </Select>
+          </div>
+        </div>
 
         <div>
-          <Label htmlFor="qd-status">Status</Label>
-          <Select id="qd-status" value={current.status} onChange={(e) => patch({ status: e.target.value })}>
-            <option value="upcoming">Upcoming</option>
-            <option value="completed">Completed</option>
-            <option value="missed">Missed</option>
-          </Select>
+          <Label htmlFor="qd-topics">Topics</Label>
+          <Input
+            id="qd-topics"
+            defaultValue={current.topics ?? ""}
+            placeholder="Chapters, units, focus areas…"
+            onBlur={(e) => e.target.value !== (current.topics ?? "") && patch({ topics: e.target.value || null })}
+          />
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -148,11 +158,74 @@ export function QuizDrawer({
           >
             <StickyNote size={14} /> Add Note
           </Button>
+          <RemindButton title={`${current.course.code}: ${current.title}`} entityType="quiz" entityId={current.id} dueAt={current.startAt} />
           <Button variant="ghost" size="sm" onClick={remove} className="text-rose-600 dark:text-rose-400">
             <Trash2 size={14} /> Delete
           </Button>
         </div>
       </div>
     </Drawer>
+  );
+}
+
+/** Date, time, duration and location — editable, since Brightspace often
+ * leaves exam rooms and times blank. Edits are tracked as overrides. */
+function Schedule({
+  current,
+  patch,
+}: {
+  current: QuizDTO;
+  patch: (body: Record<string, unknown>) => Promise<void>;
+}) {
+  const start = current.startAt ? new Date(current.startAt) : null;
+  const dateValue = start ? format(start, "yyyy-MM-dd") : "";
+  const timeValue = start ? format(start, "HH:mm") : "";
+
+  function commit(date: string, time: string) {
+    if (!date) {
+      patch({ startAt: null });
+      return;
+    }
+    patch({ startAt: new Date(`${date}T${time || "09:00"}`).toISOString() });
+  }
+
+  return (
+    <div className="rounded-lg border border-border-base p-3 space-y-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Schedule</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="qd-date">Date</Label>
+          <Input id="qd-date" type="date" value={dateValue} onChange={(e) => commit(e.target.value, timeValue)} />
+        </div>
+        <div>
+          <Label htmlFor="qd-time">Start time</Label>
+          <Input id="qd-time" type="time" value={timeValue} onChange={(e) => commit(dateValue || format(new Date(), "yyyy-MM-dd"), e.target.value)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="qd-duration">Duration (min)</Label>
+          <Input
+            id="qd-duration"
+            type="number"
+            min={1}
+            defaultValue={current.durationMins ?? ""}
+            onBlur={(e) => {
+              const v = e.target.value ? Number(e.target.value) : null;
+              if (v !== current.durationMins) patch({ durationMins: v });
+            }}
+          />
+        </div>
+        <div>
+          <Label htmlFor="qd-location">Location</Label>
+          <Input
+            id="qd-location"
+            defaultValue={current.location ?? ""}
+            placeholder="e.g. MRT 250"
+            onBlur={(e) => e.target.value !== (current.location ?? "") && patch({ location: e.target.value || null })}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

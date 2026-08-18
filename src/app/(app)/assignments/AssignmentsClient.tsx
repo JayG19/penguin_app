@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Plus, Search } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Input, PriorityBadge, ProgressBar, Select, SourceBadge } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, FilterMenu, Input, PriorityBadge, ProgressBar, SourceBadge } from "@/components/ui";
 import { AssignmentDrawer } from "@/components/AssignmentDrawer";
 import type { AssignmentDTO, CourseDTO } from "@/components/types";
 import { computePriority } from "@/lib/priority";
@@ -13,14 +13,16 @@ import { differenceInCalendarDays } from "date-fns";
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not Started",
   in_progress: "In Progress",
+  final_check: "Final Check",
   completed: "Completed",
   submitted: "Submitted",
   overdue: "Overdue",
 };
 
-const STATUS_TONE: Record<string, "neutral" | "blue" | "green" | "amber" | "red"> = {
+const STATUS_TONE: Record<string, "neutral" | "blue" | "green" | "amber" | "red" | "violet"> = {
   not_started: "neutral",
   in_progress: "blue",
+  final_check: "violet",
   completed: "green",
   submitted: "green",
   overdue: "red",
@@ -72,19 +74,31 @@ export function AssignmentsClient({ assignments, courses }: { assignments: Assig
         </Button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative grow max-w-xs">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search assignments…" className="pl-8" aria-label="Search assignments" />
         </div>
-        <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-auto" aria-label="Filter by course">
-          <option value="">All courses</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-        </Select>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-auto" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </Select>
+        <FilterMenu
+          groups={[
+            {
+              id: "course",
+              label: "Course",
+              value: courseFilter,
+              allValue: "",
+              onChange: setCourseFilter,
+              options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+            },
+            {
+              id: "status",
+              label: "Status",
+              value: statusFilter,
+              allValue: "",
+              onChange: setStatusFilter,
+              options: [{ value: "", label: "All statuses" }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value: v, label: l }))],
+            },
+          ]}
+        />
       </div>
 
       {filtered.length === 0 ? (
@@ -107,7 +121,7 @@ export function AssignmentsClient({ assignments, courses }: { assignments: Assig
             const status = effectiveStatus(a);
             const days = a.dueAt ? differenceInCalendarDays(new Date(a.dueAt), new Date()) : null;
             const urgent = days != null && days <= 2 && !["completed", "submitted"].includes(a.status);
-            const priority = computePriority({ ...a, completed: ["completed", "submitted"].includes(a.status) });
+            const priority = computePriority({ ...a, status });
             const cc = courseColor(a.course.color);
             return (
               <Card

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Eye, EyeOff, GripVertical, RotateCcw, Settings2 } from "lucide-react";
-import { Button, toast } from "@/components/ui";
+import { useCallback, useMemo, useState } from "react";
+import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
+import { Button, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type {
   AnnouncementDTO, AssignmentDTO, CourseDTO, EventDTO, GradeItemDTO, NoteDTO,
@@ -11,10 +11,11 @@ import type {
 import { AssignmentDrawer } from "@/components/AssignmentDrawer";
 import { QuizDrawer } from "@/components/QuizDrawer";
 import {
-  TodayWidget, PriorityWidget, DeadlinesWidget, CoursesWidget, AnnouncementsWidget, SyncWidget, WhatsNewWidget,
+  PriorityWidget, DeadlinesWidget, CoursesWidget, AnnouncementsWidget, SyncWidget, WhatsNewWidget,
 } from "./widgets-core";
+import { HeroToday } from "./Hero";
 import {
-  CalendarWidget, FocusWidget, GradeWidget, QuickCaptureWidget, QuickNoteWidget, StudyWidget, ToolsWidget, WorkloadWidget,
+  CalendarWidget, FocusWidget, GradeWidget, QuickNoteWidget, StudyWidget, ToolsWidget, WorkloadWidget,
 } from "./widgets-productivity";
 
 export interface PreferenceDTO {
@@ -55,25 +56,25 @@ interface WidgetDef {
   id: string;
   title: string;
   span: 1 | 2 | 3; // of 3 columns on xl
+  /** Opt-in widgets start hidden so the default dashboard stays calm. */
+  optional?: boolean;
   render: (ctx: WidgetCtx) => React.ReactNode;
 }
 
 const WIDGETS: WidgetDef[] = [
-  { id: "today", title: "Today", span: 2, render: (ctx) => <TodayWidget ctx={ctx} /> },
-  { id: "sync", title: "Brightspace Sync", span: 1, render: (ctx) => <SyncWidget ctx={ctx} /> },
-  { id: "priority", title: "What Should I Work On?", span: 2, render: (ctx) => <PriorityWidget ctx={ctx} /> },
-  { id: "capture", title: "Quick Capture", span: 1, render: (ctx) => <QuickCaptureWidget ctx={ctx} /> },
-  { id: "deadlines", title: "Upcoming Deadlines", span: 1, render: (ctx) => <DeadlinesWidget ctx={ctx} /> },
+  { id: "priority", title: "What to work on", span: 2, render: (ctx) => <PriorityWidget ctx={ctx} /> },
+  { id: "deadlines", title: "Upcoming deadlines", span: 1, render: (ctx) => <DeadlinesWidget ctx={ctx} /> },
   { id: "calendar", title: "Calendar", span: 1, render: (ctx) => <CalendarWidget ctx={ctx} /> },
   { id: "announcements", title: "Announcements", span: 1, render: (ctx) => <AnnouncementsWidget ctx={ctx} /> },
   { id: "courses", title: "Courses", span: 3, render: (ctx) => <CoursesWidget ctx={ctx} /> },
-  { id: "grades", title: "Grade Planner", span: 1, render: (ctx) => <GradeWidget ctx={ctx} /> },
-  { id: "workload", title: "Workload — Next 7 Days", span: 1, render: (ctx) => <WorkloadWidget ctx={ctx} /> },
-  { id: "study", title: "Study Progress", span: 1, render: (ctx) => <StudyWidget ctx={ctx} /> },
-  { id: "focus", title: "Focus Timer", span: 1, render: (ctx) => <FocusWidget ctx={ctx} /> },
-  { id: "quicknote", title: "Quick Note", span: 1, render: (ctx) => <QuickNoteWidget ctx={ctx} /> },
-  { id: "whatsnew", title: "What's New", span: 1, render: (ctx) => <WhatsNewWidget ctx={ctx} /> },
-  { id: "tools", title: "Quick Tools", span: 1, render: (ctx) => <ToolsWidget ctx={ctx} /> },
+  { id: "grades", title: "Grade planner", span: 1, optional: true, render: (ctx) => <GradeWidget ctx={ctx} /> },
+  { id: "workload", title: "Workload", span: 1, optional: true, render: (ctx) => <WorkloadWidget ctx={ctx} /> },
+  { id: "study", title: "Study progress", span: 1, optional: true, render: (ctx) => <StudyWidget ctx={ctx} /> },
+  { id: "focus", title: "Focus timer", span: 1, optional: true, render: (ctx) => <FocusWidget ctx={ctx} /> },
+  { id: "quicknote", title: "Quick note", span: 1, optional: true, render: (ctx) => <QuickNoteWidget ctx={ctx} /> },
+  { id: "whatsnew", title: "What's new", span: 1, optional: true, render: (ctx) => <WhatsNewWidget ctx={ctx} /> },
+  { id: "tools", title: "Quick tools", span: 1, optional: true, render: (ctx) => <ToolsWidget ctx={ctx} /> },
+  { id: "sync", title: "Brightspace sync", span: 1, optional: true, render: (ctx) => <SyncWidget ctx={ctx} /> },
 ];
 
 interface LayoutEntry {
@@ -82,7 +83,7 @@ interface LayoutEntry {
 }
 
 function defaultLayout(): LayoutEntry[] {
-  return WIDGETS.map((w) => ({ id: w.id }));
+  return WIDGETS.map((w) => ({ id: w.id, hidden: w.optional }));
 }
 
 export function DashboardClient({ data }: { data: DashboardData }) {
@@ -91,14 +92,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       const saved = data.preference?.widgetLayout ? (JSON.parse(data.preference.widgetLayout) as LayoutEntry[]) : null;
       if (!saved) return defaultLayout();
       const known = saved.filter((e) => WIDGETS.some((w) => w.id === e.id));
-      const missing = WIDGETS.filter((w) => !known.some((e) => e.id === w.id)).map((w) => ({ id: w.id }));
+      const missing = WIDGETS.filter((w) => !known.some((e) => e.id === w.id)).map((w) => ({ id: w.id, hidden: w.optional }));
       return [...known, ...missing];
     } catch {
       return defaultLayout();
     }
   });
-  const [customizing, setCustomizing] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
   const [openA, setOpenA] = useState<AssignmentDTO | null>(null);
   const [openQ, setOpenQ] = useState<QuizDTO | null>(null);
@@ -117,7 +118,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     [data, courseFilter],
   );
 
-  function onDrop(targetId: string) {
+  function move(targetId: string) {
     if (!dragId || dragId === targetId) return;
     const next = [...layout];
     const from = next.findIndex((e) => e.id === dragId);
@@ -126,25 +127,21 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     next.splice(to, 0, moved);
     saveLayout(next);
     setDragId(null);
+    setOverId(null);
   }
 
-  // Derived from the viewer's clock, which the server can't know: rendered
-  // after mount so SSR and hydration agree regardless of server timezone.
-  const [greeting, setGreeting] = useState("Welcome back");
-  useEffect(() => {
-    const h = new Date().getHours();
-    setGreeting(h < 5 ? "Burning the midnight oil" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
-  }, []);
+  function toggle(id: string) {
+    saveLayout(layout.map((e) => (e.id === id ? { ...e, hidden: !e.hidden } : e)));
+  }
+
+  const visible = layout.filter((e) => !e.hidden);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            {greeting}, {data.userName.split(" ")[0]}
-          </h1>
-          <p className="text-[13px] text-muted">Here&apos;s what&apos;s happening across your courses.</p>
-        </div>
+      <HeroToday ctx={ctx} />
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Your board</p>
         <div className="flex items-center gap-2">
           <select
             value={courseFilter ?? ""}
@@ -157,63 +154,104 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <option key={c.id} value={c.id}>{c.code}</option>
             ))}
           </select>
-          {customizing ? (
-            <>
-              <Button size="sm" variant="ghost" onClick={() => saveLayout(defaultLayout())}>
-                <RotateCcw size={13} /> Reset
+
+          <Menu
+            trigger={
+              <Button size="sm" variant="outline">
+                <LayoutGrid size={13} /> Widgets
+                <span className="text-faint tabular-nums">{visible.length}</span>
               </Button>
-              <Button size="sm" variant="primary" onClick={() => { setCustomizing(false); toast("Dashboard layout saved"); }}>
-                <Check size={13} /> Done
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => setCustomizing(true)}>
-              <Settings2 size={13} /> Customize
-            </Button>
-          )}
+            }
+          >
+            <div className="w-64">
+              <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                Show on dashboard
+              </p>
+              <div className="max-h-80 overflow-y-auto py-0.5">
+                {layout.map((entry) => {
+                  const def = WIDGETS.find((w) => w.id === entry.id);
+                  if (!def) return null;
+                  return (
+                    <button
+                      key={def.id}
+                      onClick={() => toggle(def.id)}
+                      className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[13px] text-left hover:bg-surface-2"
+                    >
+                      {entry.hidden ? (
+                        <EyeOff size={13} className="text-faint shrink-0" />
+                      ) : (
+                        <Eye size={13} className="text-accent shrink-0" />
+                      )}
+                      <span className={cn("grow truncate", entry.hidden && "text-muted")}>{def.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border-base py-1">
+                <button
+                  onClick={() => { saveLayout(defaultLayout()); toast("Dashboard reset to default"); }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-muted hover:bg-surface-2 hover:text-foreground"
+                >
+                  <RotateCcw size={13} /> Reset layout
+                </button>
+              </div>
+              <p className="px-3 pb-2 pt-0.5 text-[11px] text-faint">
+                Drag any widget by its handle to reorder.
+              </p>
+            </div>
+          </Menu>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-        {layout.map((entry) => {
+        {visible.map((entry) => {
           const def = WIDGETS.find((w) => w.id === entry.id);
           if (!def) return null;
-          if (entry.hidden && !customizing) return null;
           return (
             <section
               key={def.id}
               aria-label={def.title}
-              draggable={customizing}
-              onDragStart={() => setDragId(def.id)}
-              onDragOver={(e) => customizing && e.preventDefault()}
-              onDrop={() => onDrop(def.id)}
+              onDragOver={(e) => { e.preventDefault(); setOverId(def.id); }}
+              onDragLeave={() => setOverId((v) => (v === def.id ? null : v))}
+              onDrop={() => move(def.id)}
               className={cn(
                 def.span === 3 && "md:col-span-2 xl:col-span-3",
                 def.span === 2 && "md:col-span-2 xl:col-span-2",
-                "min-w-0 relative",
-                customizing && "cursor-grab",
-                entry.hidden && "opacity-45",
+                "group/widget relative min-w-0",
+                dragId === def.id && "widget-dragging",
+                overId === def.id && dragId && dragId !== def.id && "widget-drop-target",
               )}
             >
-              {customizing && (
-                <div className="absolute -top-2 right-2 z-10 flex gap-1">
-                  <button
-                    onClick={() => saveLayout(layout.map((e) => (e.id === def.id ? { ...e, hidden: !e.hidden } : e)))}
-                    className="rounded-md border border-border-base bg-surface p-1 text-muted hover:text-foreground shadow-sm"
-                    aria-label={entry.hidden ? `Show ${def.title}` : `Hide ${def.title}`}
-                  >
-                    {entry.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
-                  </button>
-                  <span className="rounded-md border border-border-base bg-surface p-1 text-muted shadow-sm">
-                    <GripVertical size={13} />
-                  </span>
-                </div>
-              )}
+              {/* Always available — no edit mode to enter first. */}
+              <div
+                draggable
+                onDragStart={() => setDragId(def.id)}
+                onDragEnd={() => { setDragId(null); setOverId(null); }}
+                title={`Drag to reorder ${def.title}`}
+                className="absolute -top-1.5 right-2 z-10 cursor-grab active:cursor-grabbing rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+              >
+                <GripVertical size={12} />
+              </div>
+              <button
+                onClick={() => toggle(def.id)}
+                title={`Hide ${def.title}`}
+                aria-label={`Hide ${def.title}`}
+                className="absolute -top-1.5 right-9 z-10 rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+              >
+                <EyeOff size={12} />
+              </button>
               {def.render(ctx)}
             </section>
           );
         })}
       </div>
+
+      {visible.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border-strong p-8 text-center">
+          <p className="text-sm font-medium">No widgets on your board</p>
+          <p className="text-[13px] text-muted mt-1">Add some from the Widgets menu above.</p>
+        </div>
+      )}
 
       <AssignmentDrawer assignment={openA} onClose={() => setOpenA(null)} />
       <QuizDrawer quiz={openQ} onClose={() => setOpenQ(null)} />
