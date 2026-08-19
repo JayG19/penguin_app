@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { AlarmClock, Bell, Check, Image as ImageIcon, Monitor, Moon, Palette, RefreshCw, Sun, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlarmClock, Bell, Check, Clock3, Image as ImageIcon, Monitor, Moon, Palette, RefreshCw, Sun, User } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Select, Switch, toast } from "@/components/ui";
-import { ACCENTS, BACKGROUNDS, PRIORITY_SCHEMES, applyAppearance, type AppearanceState } from "@/lib/appearance";
+import { ACCENTS, BACKGROUNDS, PRIORITY_SCHEMES, accentVarsFromHex, applyAppearance, type AppearanceState } from "@/lib/appearance";
+import { COMMON_TIMEZONES, detectTimezone, timezoneLabel } from "@/lib/timezone";
 import type { NudgePrefs } from "@/lib/nudges/prefs";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export function SettingsClient({
   userName,
   email,
   appearance: initialAppearance,
+  timezone: initialTimezone,
   syncMode,
   notificationPrefs,
   nudgePrefs: initialNudges,
@@ -76,6 +78,7 @@ export function SettingsClient({
   userName: string;
   email: string;
   appearance: AppearanceState;
+  timezone: string | null;
   syncMode: string;
   notificationPrefs: string | null;
   nudgePrefs: NudgePrefs;
@@ -85,6 +88,14 @@ export function SettingsClient({
   const [nudges, setNudges] = useState(initialNudges);
   const [mode, setMode] = useState(syncMode);
   const [imageUrl, setImageUrl] = useState(initialAppearance.backgroundUrl ?? "");
+  const [customHex, setCustomHex] = useState(initialAppearance.customAccent ?? "#4f46e5");
+  const [tzMode, setTzMode] = useState<"auto" | "manual">(initialTimezone ? "manual" : "auto");
+  const [timezone, setTimezone] = useState(initialTimezone ?? "");
+  // Detected only after mount — the server has no notion of the browser's
+  // timezone, so resolving this during render would mismatch on hydration
+  // for anyone not in the server's own timezone (i.e. almost everyone).
+  const [detectedTz, setDetectedTz] = useState("UTC");
+  useEffect(() => setDetectedTz(detectTimezone()), []);
   const [notifs, setNotifs] = useState<Record<string, boolean>>(() => {
     try {
       return notificationPrefs ? JSON.parse(notificationPrefs) : { deadlines: true, announcements: true, grades: true, content: true, sync: true };
@@ -107,15 +118,30 @@ export function SettingsClient({
     setAppearance(next);
     applyAppearance(patch);
     try {
-      const def = ACCENTS.find((a) => a.key === next.accent) ?? ACCENTS[0];
-      localStorage.setItem(
-        "campushub-appearance",
-        JSON.stringify({ ...next, vars: { light: def.light, lightSoft: def.lightSoft, dark: def.dark, darkSoft: def.darkSoft } }),
-      );
+      const vars = next.accent === "custom" ? accentVarsFromHex(next.customAccent ?? customHex) : (() => {
+        const def = ACCENTS.find((a) => a.key === next.accent) ?? ACCENTS[0];
+        return { light: def.light, lightSoft: def.lightSoft, dark: def.dark, darkSoft: def.darkSoft };
+      })();
+      localStorage.setItem("campushub-appearance", JSON.stringify({ ...next, vars }));
       if (patch.theme) localStorage.setItem("campushub-theme", patch.theme);
     } catch {}
     persist(patch);
     if (message) toast(message);
+  }
+
+  function setTimezoneMode(mode: "auto" | "manual") {
+    setTzMode(mode);
+    if (mode === "auto") {
+      setTimezone("");
+      persist({ timezone: null });
+      toast(`Time zone: ${timezoneLabel(detectedTz)} (auto-detected)`);
+    }
+  }
+
+  function updateTimezone(tz: string) {
+    setTimezone(tz);
+    persist({ timezone: tz });
+    toast("Time zone updated");
   }
 
   function updateNudges(patch: Partial<NudgePrefs>, message?: string) {
@@ -158,7 +184,6 @@ export function SettingsClient({
             <p className="text-[14px] font-medium">{userName}</p>
             <p className="text-xs text-muted truncate">{email}</p>
           </div>
-          <Badge tone="amber" className="ml-auto shrink-0">Demo account</Badge>
         </div>
       </Section>
 
@@ -204,7 +229,36 @@ export function SettingsClient({
                   )}
                 </button>
               ))}
+              <label
+                title="Custom colour"
+                className={cn(
+                  "relative h-9 w-9 rounded-full border-2 cursor-pointer transition-transform hover:scale-105 flex items-center justify-center overflow-hidden",
+                  appearance.accent === "custom" ? "border-foreground" : "border-transparent",
+                )}
+                style={{
+                  background: appearance.accent === "custom" && appearance.customAccent
+                    ? appearance.customAccent
+                    : "conic-gradient(from 0deg, #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #6366f1, #d946ef, #ef4444)",
+                }}
+              >
+                <input
+                  type="color"
+                  value={customHex}
+                  onChange={(e) => {
+                    setCustomHex(e.target.value);
+                    updateAppearance({ accent: "custom", customAccent: e.target.value }, "Custom accent set");
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="Pick a custom accent colour"
+                />
+                {appearance.accent === "custom" ? (
+                  <Check size={14} className="pointer-events-none text-white drop-shadow" />
+                ) : (
+                  <Palette size={13} className="pointer-events-none text-white drop-shadow" />
+                )}
+              </label>
             </div>
+            <p className="text-[11px] text-faint mt-1.5">Pick any colour — the whole app restyles around it instantly.</p>
           </div>
 
           <div>
@@ -295,6 +349,44 @@ export function SettingsClient({
               label="Compact density"
             />
           </Row>
+        </div>
+      </Section>
+
+      <Section icon={<Clock3 size={15} />} title="Time zone" description="Used to time reminders and quiet hours correctly.">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setTimezoneMode("auto")}
+              aria-pressed={tzMode === "auto"}
+              className={cn(
+                "rounded-xl border p-2.5 text-[13px] font-medium transition-colors",
+                tzMode === "auto" ? "border-accent bg-accent-soft text-accent" : "border-border-base text-muted hover:text-foreground hover:border-border-strong",
+              )}
+            >
+              Automatic
+            </button>
+            <button
+              onClick={() => setTimezoneMode("manual")}
+              aria-pressed={tzMode === "manual"}
+              className={cn(
+                "rounded-xl border p-2.5 text-[13px] font-medium transition-colors",
+                tzMode === "manual" ? "border-accent bg-accent-soft text-accent" : "border-border-base text-muted hover:text-foreground hover:border-border-strong",
+              )}
+            >
+              Manual
+            </button>
+          </div>
+          {tzMode === "auto" ? (
+            <p className="text-xs text-muted" suppressHydrationWarning>
+              Detected from your browser: <span className="font-medium text-foreground">{timezoneLabel(detectedTz)}</span>
+            </p>
+          ) : (
+            <Select value={timezone || detectedTz} onChange={(e) => updateTimezone(e.target.value)} aria-label="Time zone">
+              {COMMON_TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>{timezoneLabel(tz)}</option>
+              ))}
+            </Select>
+          )}
         </div>
       </Section>
 

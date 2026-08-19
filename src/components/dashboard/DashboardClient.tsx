@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import {
+  DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter,
+  useSensor, useSensors, type DragEndEvent, type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
 import { Button, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -99,8 +107,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       return defaultLayout();
     }
   });
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [courseFilter, setCourseFilter] = useState<string | null>(null);
   const [openA, setOpenA] = useState<AssignmentDTO | null>(null);
   const [openQ, setOpenQ] = useState<QuizDTO | null>(null);
@@ -119,16 +126,29 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     [data, courseFilter],
   );
 
-  function move(targetId: string) {
-    if (!dragId || dragId === targetId) return;
-    const next = [...layout];
-    const from = next.findIndex((e) => e.id === dragId);
-    const to = next.findIndex((e) => e.id === targetId);
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const visibleIds = layout.filter((entry) => !entry.hidden).map((entry) => entry.id);
+    const from = visibleIds.indexOf(String(active.id));
+    const to = visibleIds.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    const reorderedVisible = arrayMove(visibleIds, from, to);
+    // Splice the reordered visible ids back into the full layout, keeping
+    // hidden widgets in their existing relative positions.
+    let cursor = 0;
+    const next = layout.map((entry) => (entry.hidden ? entry : { ...entry, id: reorderedVisible[cursor++] }));
     saveLayout(next);
-    setDragId(null);
-    setOverId(null);
   }
 
   function toggle(id: string) {
@@ -136,6 +156,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   }
 
   const visible = layout.filter((e) => !e.hidden);
+  const activeDef = activeId ? WIDGETS.find((w) => w.id === activeId) : null;
 
   return (
     <div className="space-y-4">
@@ -204,48 +225,27 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-        {visible.map((entry) => {
-          const def = WIDGETS.find((w) => w.id === entry.id);
-          if (!def) return null;
-          return (
-            <section
-              key={def.id}
-              aria-label={def.title}
-              onDragOver={(e) => { e.preventDefault(); setOverId(def.id); }}
-              onDragLeave={() => setOverId((v) => (v === def.id ? null : v))}
-              onDrop={() => move(def.id)}
-              className={cn(
-                def.span === 3 && "md:col-span-2 xl:col-span-3",
-                def.span === 2 && "md:col-span-2 xl:col-span-2",
-                "group/widget relative min-w-0",
-                dragId === def.id && "widget-dragging",
-                overId === def.id && dragId && dragId !== def.id && "widget-drop-target",
-              )}
-            >
-              {/* Always available — no edit mode to enter first. */}
-              <div
-                draggable
-                onDragStart={() => setDragId(def.id)}
-                onDragEnd={() => { setDragId(null); setOverId(null); }}
-                title={`Drag to reorder ${def.title}`}
-                className="absolute -top-1.5 right-2 z-10 cursor-grab active:cursor-grabbing rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
-              >
-                <GripVertical size={12} />
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <SortableContext items={visible.map((e) => e.id)} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 grid-flow-row-dense gap-4 items-start">
+            {visible.map((entry) => {
+              const def = WIDGETS.find((w) => w.id === entry.id);
+              if (!def) return null;
+              return <SortableWidget key={def.id} def={def} ctx={ctx} onHide={() => toggle(def.id)} />;
+            })}
+          </div>
+        </SortableContext>
+        <DragOverlay>
+          {activeDef ? (
+            <div className="rounded-xl border-2 border-accent bg-surface shadow-2xl opacity-95 rotate-1 scale-[1.02]">
+              <div className="px-4 pt-3.5 pb-2">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent">{activeDef.title}</h3>
               </div>
-              <button
-                onClick={() => toggle(def.id)}
-                title={`Hide ${def.title}`}
-                aria-label={`Hide ${def.title}`}
-                className="absolute -top-1.5 right-9 z-10 rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
-              >
-                <EyeOff size={12} />
-              </button>
-              {def.render(ctx)}
-            </section>
-          );
-        })}
-      </div>
+              <div className="px-4 pb-4 text-xs text-muted">Moving…</div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {visible.length === 0 && (
         <div className="rounded-xl border border-dashed border-border-strong p-8 text-center">
@@ -257,5 +257,41 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       <AssignmentDrawer assignment={openA} onClose={() => setOpenA(null)} />
       <QuizDrawer quiz={openQ} onClose={() => setOpenQ(null)} />
     </div>
+  );
+}
+
+function SortableWidget({ def, ctx, onHide }: { def: WidgetDef; ctx: WidgetCtx; onHide: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: def.id });
+
+  return (
+    <section
+      ref={setNodeRef}
+      aria-label={def.title}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        def.span === 3 && "md:col-span-2 xl:col-span-3",
+        def.span === 2 && "md:col-span-2 xl:col-span-2",
+        "group/widget relative min-w-0",
+        isDragging && "opacity-40 z-10",
+      )}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        title={`Drag to reorder ${def.title}`}
+        className="absolute -top-1.5 right-2 z-10 cursor-grab touch-none active:cursor-grabbing rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+      >
+        <GripVertical size={12} />
+      </div>
+      <button
+        onClick={onHide}
+        title={`Hide ${def.title}`}
+        aria-label={`Hide ${def.title}`}
+        className="absolute -top-1.5 right-9 z-10 rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+      >
+        <EyeOff size={12} />
+      </button>
+      {def.render(ctx)}
+    </section>
   );
 }

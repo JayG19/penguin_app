@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { DONE_STATUSES } from "@/lib/priority";
 import { applyQuietHours, parseNudgePrefs, type NudgePrefs } from "./prefs";
@@ -31,6 +32,7 @@ function leadLabel(hours: number): string {
 export async function scanNudges(userId: string): Promise<{ created: number; updated: number }> {
   const pref = await db.userPreference.findUnique({ where: { userId } });
   const prefs: NudgePrefs = parseNudgePrefs(pref?.nudgePrefs);
+  const timezone = pref?.timezone ?? null;
   if (!prefs.enabled) return { created: 0, updated: 0 };
 
   const now = new Date();
@@ -45,7 +47,7 @@ export async function scanNudges(userId: string): Promise<{ created: number; upd
       candidates.push({
         ...base,
         category: `${category}:${lead}`,
-        remindAt: applyQuietHours(remindAt, prefs),
+        remindAt: applyQuietHours(remindAt, prefs, timezone),
         body: `${base.body} — due ${leadLabel(lead)}`,
       });
     }
@@ -119,7 +121,7 @@ export async function scanNudges(userId: string): Promise<{ created: number; upd
       candidates.push({
         title: `${an.course.code}: ${an.title}`,
         body: an.author ? `New announcement from ${an.author}` : "New announcement",
-        remindAt: applyQuietHours(now, prefs),
+        remindAt: applyQuietHours(now, prefs, timezone),
         category: "announcement",
         entityType: "announcement",
         entityId: an.id,
@@ -137,7 +139,7 @@ export async function scanNudges(userId: string): Promise<{ created: number; upd
       candidates.push({
         title: `${g.course.code}: ${g.name} graded`,
         body: `${g.score}/${g.maxScore}`,
-        remindAt: applyQuietHours(now, prefs),
+        remindAt: applyQuietHours(now, prefs, timezone),
         category: "grade",
         entityType: "grade",
         entityId: g.id,
@@ -151,19 +153,29 @@ export async function scanNudges(userId: string): Promise<{ created: number; upd
     const existing = await db.nudge.findFirst({
       where: { userId, entityType: c.entityType, entityId: c.entityId, category: c.category, kind: "auto" },
     });
-    if (!existing) {
+    if (existing) {
+      if (
+        !existing.dismissed &&
+        // Only deadline-derived nudges track their source date. Announcement and
+        // grade nudges fire "now", so re-timing them on every scan would keep
+        // pushing them forward and they'd never settle.
+        /:\d+$/.test(c.category) &&
+        existing.remindAt.getTime() !== c.remindAt.getTime()
+      ) {
+        await db.nudge.update({ where: { id: existing.id }, data: { remindAt: c.remindAt, body: c.body } });
+        updated++;
+      }
+      continue;
+    }
+    try {
       await db.nudge.create({ data: { userId, kind: "auto", ...c } });
       created++;
-    } else if (
-      !existing.dismissed &&
-      // Only deadline-derived nudges track their source date. Announcement and
-      // grade nudges fire "now", so re-timing them on every scan would keep
-      // pushing them forward and they'd never settle.
-      /:\d+$/.test(c.category) &&
-      existing.remindAt.getTime() !== c.remindAt.getTime()
-    ) {
-      await db.nudge.update({ where: { id: existing.id }, data: { remindAt: c.remindAt, body: c.body } });
-      updated++;
+    } catch (err) {
+      // Two concurrent scans (background polling + a page load both
+      // triggering a scan) can each pass the findFirst check before either
+      // creates — the unique constraint already guarantees only one row
+      // ever exists, so this race is safe to swallow.
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
     }
   }
 

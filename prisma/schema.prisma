@@ -46,11 +46,16 @@ model UserPreference {
   lastSeenFeedAt    DateTime?
 
   // Appearance
-  accent         String  @default("indigo") // accent palette key
+  accent         String  @default("indigo") // accent palette key, or "custom"
+  customAccent   String? // hex colour, used when accent = "custom"
   background     String  @default("plain")  // plain | mesh | grid | glow | custom
   backgroundUrl  String? // used when background = "custom"
   priorityScheme String  @default("classic") // classic | colorblind | mono
   density        String  @default("comfortable") // comfortable | compact
+
+  // Timezone: IANA name (e.g. "America/Toronto"), or null to auto-detect
+  // from the browser on every load.
+  timezone String?
 
   // Nudges: JSON { enabled, leadHours: number[], categories: {...}, quietStart, quietEnd }
   nudgePrefs String?

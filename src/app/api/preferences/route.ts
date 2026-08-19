@@ -11,10 +11,12 @@ const schema = z.object({
   targetGrades: z.string().optional(),
   lastSeenFeedAt: z.string().datetime().optional(),
   accent: z.string().max(24).optional(),
+  customAccent: z.string().max(9).nullable().optional(),
   background: z.enum(["plain", "mesh", "grid", "glow", "custom"]).optional(),
   backgroundUrl: z.string().max(2048).nullable().optional(),
   priorityScheme: z.enum(["classic", "colorblind", "mono"]).optional(),
   density: z.enum(["comfortable", "compact"]).optional(),
+  timezone: z.string().max(64).nullable().optional(),
   nudgePrefs: z.string().optional(),
 });
 

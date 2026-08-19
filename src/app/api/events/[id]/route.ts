@@ -11,6 +11,7 @@ const patchSchema = z.object({
   location: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   courseId: z.string().nullable().optional(),
+  recurrence: z.string().nullable().optional(),
 });
 
 export const PATCH = withAuth(async (req, user, ctx: IdCtx) => {

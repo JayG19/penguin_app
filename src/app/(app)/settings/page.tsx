@@ -19,11 +19,13 @@ export default async function SettingsPage() {
       appearance={{
         theme: pref?.theme ?? "system",
         accent: pref?.accent ?? "indigo",
+        customAccent: pref?.customAccent ?? null,
         background: pref?.background ?? "plain",
         backgroundUrl: pref?.backgroundUrl ?? null,
         priorityScheme: pref?.priorityScheme ?? "classic",
         density: pref?.density ?? "comfortable",
       }}
+      timezone={pref?.timezone ?? null}
       syncMode={pref?.syncMode ?? "manual"}
       notificationPrefs={pref?.notificationPrefs ?? null}
       nudgePrefs={parseNudgePrefs(pref?.nudgePrefs)}

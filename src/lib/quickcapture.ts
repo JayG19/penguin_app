@@ -1,9 +1,14 @@
 import { addDays, nextDay, setHours, setMinutes, startOfDay, type Day } from "date-fns";
 
+export type CaptureKind =
+  | "assignment" | "quiz" | "exam" | "event" | "task" | "reading" | "project" | "presentation" | "reminder";
+
 export interface ParsedCapture {
   title: string;
   dueAt: Date | null;
   courseHint: string | null;
+  /** Best-guess bucket, based on keywords — the UI lets the user override it. */
+  kind: CaptureKind;
 }
 
 const WEEKDAYS: Record<string, Day> = {
@@ -17,10 +22,28 @@ const MONTHS: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
 };
 
+function detectKind(input: string): CaptureKind {
+  const s = input.toLowerCase();
+  if (/\b(midterm|final exam)\b/.test(s)) return "exam";
+  if (/\bexam\b/.test(s)) return "exam";
+  if (/\b(quiz|test)\b/.test(s)) return "quiz";
+  if (/\b(assignment|homework|\bhw\b|essay|paper|submit|deliverable)\b/.test(s)) return "assignment";
+  if (/\breading\b/.test(s)) return "reading";
+  if (/\bproject\b/.test(s)) return "project";
+  if (/\bpresentation\b/.test(s)) return "presentation";
+  if (/\bremind(er)?\b/.test(s)) return "reminder";
+  if (/\b(session|gym|workout|meeting|appointment|class|dinner|lunch|call|practice|game|trip|party|hangout|checkup|appt|birthday)\b/.test(s)) return "event";
+  return "task";
+}
+
 /**
  * Deterministic natural-language parser for quick capture, e.g.
  * "Finish business analytics assignment tomorrow at 7pm"
  * "ADM2302 reading friday", "Study for midterm sept 21 at 9am".
+ *
+ * Pure and isomorphic — always call it with the caller's own `now` (typically
+ * `new Date()` from the browser) so "2pm" resolves in the user's own
+ * timezone rather than wherever the code happens to execute.
  */
 export function parseQuickCapture(input: string, now = new Date()): ParsedCapture {
   let text = ` ${input.trim()} `;
@@ -105,5 +128,5 @@ export function parseQuickCapture(input: string, now = new Date()): ParsedCaptur
   const courseHint = courseMatch ? courseMatch[1].replace(/\s/, "") : null;
 
   const title = text.replace(/\s+/g, " ").replace(/\s+(on|by|due)\s*$/i, "").trim();
-  return { title: title || input.trim(), dueAt, courseHint };
+  return { title: title || input.trim(), dueAt, courseHint, kind: detectKind(input) };
 }

@@ -1,3 +1,5 @@
+import { getHourInTimezone } from "@/lib/timezone";
+
 /** Nudge preferences, stored as JSON on UserPreference.nudgePrefs. */
 export interface NudgePrefs {
   enabled: boolean;
@@ -43,19 +45,21 @@ export function parseNudgePrefs(raw: string | null | undefined): NudgePrefs {
 /**
  * Pushes a reminder out of the user's quiet window (e.g. 23:00–07:00 becomes
  * 07:00 the same night). Windows that wrap past midnight are handled.
+ *
+ * `timezone` is the user's IANA timezone (from Settings); quiet hours are
+ * evaluated in that zone, not wherever this code happens to run — this runs
+ * server-side, so without it "23:00" would mean 23:00 on the server.
  */
-export function applyQuietHours(when: Date, prefs: NudgePrefs): Date {
+export function applyQuietHours(when: Date, prefs: NudgePrefs, timezone?: string | null): Date {
   const { quietStart, quietEnd } = prefs;
   if (quietStart == null || quietEnd == null || quietStart === quietEnd) return when;
-  const hour = when.getHours();
+  const hour = getHourInTimezone(when, timezone);
   const inQuiet = quietStart < quietEnd ? hour >= quietStart && hour < quietEnd : hour >= quietStart || hour < quietEnd;
   if (!inQuiet) return when;
-  const out = new Date(when);
-  if (quietStart < quietEnd || hour < quietEnd) {
-    out.setHours(quietEnd, 0, 0, 0);
-  } else {
-    out.setDate(out.getDate() + 1);
-    out.setHours(quietEnd, 0, 0, 0);
-  }
+  // Advance in whole hours (rather than setHours, which would apply the
+  // server's own timezone) so the shift is correct regardless of `timezone`.
+  const hoursUntilEnd = quietEnd > hour ? quietEnd - hour : 24 - hour + quietEnd;
+  const out = new Date(when.getTime() + hoursUntilEnd * 3600_000);
+  out.setMinutes(0, 0, 0);
   return out;
 }

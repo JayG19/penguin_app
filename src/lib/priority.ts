@@ -82,8 +82,15 @@ export function computePriority(item: Prioritizable, now = new Date()): Priority
   // final check, which is a different kind of action, so it gets its own tag.
   if (isReview(item)) return "review";
 
-  const score = priorityScore(item, now);
-  if (score >= 32) return "high";
-  if (score >= 18) return "medium";
+  // Tier is a pure function of days-until-due — weight never enters it. Any
+  // weight-based escalation inside a multi-day bucket would let a later-due,
+  // heavier item outrank an earlier-due, lighter one *within that bucket*,
+  // which is exactly the inversion this must never produce. (`priorityScore`
+  // below still folds weight in, for fine-grained ordering within a tier.)
+  const days = item.dueAt ? differenceInCalendarDays(new Date(item.dueAt), now) : null;
+
+  if (days == null) return "low";
+  if (days <= 2) return "high";
+  if (days <= 7) return "medium";
   return "low";
 }

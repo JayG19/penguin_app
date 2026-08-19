@@ -104,6 +104,8 @@ export interface EventDTO {
   courseId: string | null;
   course?: CourseLite | null;
   source: string;
+  /** e.g. "weekly" or "weekly:2026-12-15" (frequency, optional until-date). */
+  recurrence: string | null;
 }
 
 export interface GradeItemDTO {

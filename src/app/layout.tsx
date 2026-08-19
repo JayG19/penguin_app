@@ -29,7 +29,7 @@ const themeInit = `
       }
     }
     if (a.background) el.dataset.bg = a.background;
-    if (a.backgroundUrl) el.style.setProperty("--bg-image", 'url("' + a.backgroundUrl + '")');
+    if (a.backgroundUrl) el.style.setProperty("--bg-image", "url(" + JSON.stringify(a.backgroundUrl) + ")");
     if (a.priorityScheme) el.dataset.priority = a.priorityScheme;
     if (a.density) el.dataset.density = a.density;
   } catch (e) {}

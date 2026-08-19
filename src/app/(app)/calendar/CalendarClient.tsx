@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
-  addDays, addMonths, addWeeks, eachDayOfInterval, endOfMonth, endOfWeek, format,
+  addDays, addMonths, addWeeks, addYears, eachDayOfInterval, endOfMonth, endOfWeek, format,
   isSameDay, isSameMonth, isToday, setHours, setMinutes, startOfMonth, startOfWeek, subMonths, subWeeks,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, ExternalLink, Plus, StickyNote, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Plus, Repeat, StickyNote, Timer } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Modal, Segmented, SourceBadge, toast } from "@/components/ui";
 import { AssignmentDrawer } from "@/components/AssignmentDrawer";
 import { QuizDrawer } from "@/components/QuizDrawer";
@@ -34,6 +34,33 @@ interface CalItem {
   assignment?: AssignmentDTO;
   quiz?: QuizDTO;
   description?: string | null;
+  recurring?: boolean;
+}
+
+const RECUR_LABEL: Record<string, string> = { daily: "Daily", weekly: "Weekly", biweekly: "Every 2 weeks", monthly: "Monthly" };
+
+/** Expands a recurring event into its individual occurrences for display —
+ * stored as one row with a `recurrence` string, materialized client-side so
+ * the backend and data model stay simple. Capped so an endless recurrence
+ * doesn't run away. */
+function expandOccurrences(e: EventDTO): { start: Date; end: Date | null }[] {
+  const start = new Date(e.startAt);
+  const end = e.endAt ? new Date(e.endAt) : null;
+  if (!e.recurrence) return [{ start, end }];
+  const [freq, untilStr] = e.recurrence.split(":");
+  const duration = end ? end.getTime() - start.getTime() : null;
+  const until = untilStr ? new Date(`${untilStr}T23:59:59`) : addYears(start, 2);
+  const step = (d: Date) =>
+    freq === "daily" ? addDays(d, 1) : freq === "biweekly" ? addWeeks(d, 2) : freq === "monthly" ? addMonths(d, 1) : addWeeks(d, 1);
+  const occurrences: { start: Date; end: Date | null }[] = [];
+  let cur = start;
+  let n = 0;
+  while (cur <= until && n < 200) {
+    occurrences.push({ start: cur, end: duration != null ? new Date(cur.getTime() + duration) : null });
+    cur = step(cur);
+    n++;
+  }
+  return occurrences;
 }
 
 const KIND_STYLE: Record<string, { chip: string; label: string }> = {
@@ -68,12 +95,16 @@ export function CalendarClient({
   const items: CalItem[] = useMemo(() => {
     const list: CalItem[] = [];
     for (const e of events) {
-      list.push({
-        key: `e${e.id}`, id: e.id, kind: (e.type as CalItem["kind"]) ?? "event", title: e.title,
-        date: new Date(e.startAt), endDate: e.endAt ? new Date(e.endAt) : null,
-        color: e.course?.color ?? "sky", courseCode: e.course?.code ?? null, location: e.location,
-        weight: null, source: e.source, draggable: e.source === "manual" && e.type !== "class",
-        patchUrl: `/api/events/${e.id}`, patchField: "startAt", description: e.description,
+      const occurrences = expandOccurrences(e);
+      occurrences.forEach((occ, idx) => {
+        list.push({
+          key: idx === 0 ? `e${e.id}` : `e${e.id}-${idx}`, id: e.id, kind: (e.type as CalItem["kind"]) ?? "event", title: e.title,
+          date: occ.start, endDate: occ.end,
+          color: e.course?.color ?? "sky", courseCode: e.course?.code ?? null, location: e.location,
+          weight: null, source: e.source, draggable: idx === 0 && e.source === "manual" && e.type !== "class",
+          patchUrl: `/api/events/${e.id}`, patchField: "startAt", description: e.description,
+          recurring: !!e.recurrence,
+        });
       });
     }
     for (const a of assignments) {
@@ -153,6 +184,7 @@ export function CalendarClient({
       >
         {!compact && <span className="opacity-70">{format(item.date, "h:mm a")} </span>}
         {item.title}
+        {item.recurring && <Repeat size={9} className="ml-1 inline-block opacity-60 align-baseline" aria-label="Repeats" />}
       </button>
     );
   }
@@ -336,6 +368,12 @@ export function CalendarClient({
               {selected.endDate ? ` – ${format(selected.endDate, "h:mm a")}` : ""}
               {selected.location ? ` · ${selected.location}` : ""}
             </p>
+            {selected.recurring && (
+              <p className="flex items-center gap-1.5 text-xs text-muted">
+                <Repeat size={12} />
+                Repeats {(RECUR_LABEL[events.find((e) => e.id === selected.id)?.recurrence?.split(":")[0] ?? ""] ?? "").toLowerCase()}
+              </p>
+            )}
             {selected.description && <p className="text-[13px] text-muted whitespace-pre-wrap">{selected.description}</p>}
             <div className="flex gap-2 flex-wrap pt-1">
               {selected.brightspaceUrl && (
@@ -358,11 +396,11 @@ export function CalendarClient({
               {selected.source === "manual" && selected.key.startsWith("e") && (
                 <Button size="sm" variant="ghost" className="text-rose-600 dark:text-rose-400" onClick={async () => {
                   await fetch(`/api/events/${selected.id}`, { method: "DELETE" });
-                  toast("Event deleted");
+                  toast(selected.recurring ? "Event series deleted" : "Event deleted");
                   setSelected(null);
                   router.refresh();
                 }}>
-                  Delete
+                  {selected.recurring ? "Delete series" : "Delete"}
                 </Button>
               )}
             </div>

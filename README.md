@@ -109,9 +109,11 @@ times, categories, a minimum-weight threshold and quiet hours are all configurab
 
 ## Priority model
 
-`computePriority()` scales an item's **weight by its urgency** rather than adding the two, so a
-25% midterm outranks a five-minute errand that happens to be due sooner. Two states sit outside
-the high/medium/low scale:
+`computePriority()` tiers items by **days until due first** — an assignment due sooner is never
+outranked by one due later, regardless of weight. Tier is a pure function of the deadline
+(overdue/≤2 days → High, ≤7 days → Medium, beyond → Low); weight still drives fine-grained
+ordering within a tier via `priorityScore()` (e.g. in the "What to work on" widget's top picks).
+Two states sit outside the high/medium/low scale:
 
 - **Final check** — work at 100% completion that hasn't been submitted yet. Reaching 100% promotes
   the status to `final_check` automatically; it never reads as "low priority" just because the
@@ -123,10 +125,13 @@ a user preference.
 
 ## Appearance
 
-Theme (light/dark/system), accent colour, background (plain, aurora, grid, glow or a custom image
-URL), priority colour scheme and density are stored per user and applied via CSS custom properties
-on the document root. A small pre-hydration script restores them from `localStorage` before first
-paint, so there's no flash of the wrong theme.
+Theme (light/dark/system), accent colour (a preset swatch or any custom hex colour), background
+(plain, aurora, grid, glow or a custom image URL), priority colour scheme and density are stored
+per user and applied via CSS custom properties on the document root. A small pre-hydration script
+restores them from `localStorage` before first paint, so there's no flash of the wrong theme.
+
+Timezone (auto-detected from the browser, or set manually in Settings) is stored per user and used
+to time nudges and quiet hours in the user's own local time rather than the server's.
 
 ## Brightspace integration approach
 
@@ -214,7 +219,7 @@ All routes require an authenticated session. `GET` collections accept filters (`
 `/api/quizzes[/:id]` · `/api/tasks[/:id]` · `/api/notes[/:id]` · `/api/announcements[/:id]` ·
 `/api/events[/:id]` · `/api/contacts[/:id]` · `/api/grades[/:id]` · `/api/submissions/:assignmentId` ·
 `/api/resources` · `/api/tools[/:id]` · `/api/study-sessions` · `/api/notifications` ·
-`/api/preferences` · `/api/search?q=` · `/api/quick-capture` · `/api/sync` ·
+`/api/preferences` · `/api/search?q=` · `/api/sync` ·
 `/api/brightspace/{connect,callback}`
 
 ## Project structure

@@ -29,6 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const appearance = {
     theme: preference?.theme ?? "system",
     accent: preference?.accent ?? "indigo",
+    customAccent: preference?.customAccent ?? null,
     background: preference?.background ?? "plain",
     backgroundUrl: preference?.backgroundUrl ?? null,
     priorityScheme: preference?.priorityScheme ?? "classic",

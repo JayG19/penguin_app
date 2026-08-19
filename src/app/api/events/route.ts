@@ -11,6 +11,8 @@ const createSchema = z.object({
   location: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   courseId: z.string().nullable().optional(),
+  recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).nullable().optional(),
+  recurrenceUntil: z.string().datetime().nullable().optional(),
 });
 
 export const GET = withAuth(async (req, user) => {
@@ -29,13 +31,14 @@ export const GET = withAuth(async (req, user) => {
 });
 
 export const POST = withAuth(async (req, user) => {
-  const data = createSchema.parse(await req.json());
+  const { recurrence, recurrenceUntil, ...data } = createSchema.parse(await req.json());
   const event = await db.calendarEvent.create({
     data: {
       ...data,
       userId: user.id,
       startAt: new Date(data.startAt),
       endAt: data.endAt ? new Date(data.endAt) : null,
+      recurrence: recurrence ? `${recurrence}${recurrenceUntil ? `:${recurrenceUntil.slice(0, 10)}` : ""}` : null,
       source: "manual",
     },
     include: { course: true },

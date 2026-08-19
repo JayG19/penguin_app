@@ -133,6 +133,8 @@ export function QuickAdd() {
             location: form.location || null,
             courseId: form.courseId || null,
             description: form.description || null,
+            recurrence: form.recurrence || null,
+            recurrenceUntil: form.recurrence && form.recurrenceUntil ? new Date(`${form.recurrenceUntil}T23:59:59`).toISOString() : null,
           };
           break;
         case "course":
@@ -322,6 +324,27 @@ export function QuickAdd() {
                   <Label htmlFor="qa-loc">Location</Label>
                   <Input id="qa-loc" value={form.location ?? ""} onChange={(e) => set("location", e.target.value)} />
                 </div>
+              </div>
+            )}
+
+            {type === "event" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="qa-recur">Repeats</Label>
+                  <Select id="qa-recur" value={form.recurrence ?? ""} onChange={(e) => set("recurrence", e.target.value)}>
+                    <option value="">Does not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Every 2 weeks</option>
+                    <option value="monthly">Monthly</option>
+                  </Select>
+                </div>
+                {form.recurrence && (
+                  <div>
+                    <Label htmlFor="qa-recur-until">Repeat until (optional)</Label>
+                    <Input id="qa-recur-until" type="date" value={form.recurrenceUntil ?? ""} onChange={(e) => set("recurrenceUntil", e.target.value)} />
+                  </div>
+                )}
               </div>
             )}
 

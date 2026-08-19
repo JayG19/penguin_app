@@ -6,6 +6,8 @@ import { format, isToday } from "date-fns";
 import { Check, ChevronDown, ChevronUp, RefreshCw, Send, Sparkles } from "lucide-react";
 import { Button, Input, Spinner, toast } from "@/components/ui";
 import { cn, timeAgo } from "@/lib/utils";
+import { parseQuickCapture, type CaptureKind } from "@/lib/quickcapture";
+import type { CourseLite } from "@/components/types";
 import type { WidgetCtx } from "./DashboardClient";
 
 /**
@@ -13,12 +15,15 @@ import type { WidgetCtx } from "./DashboardClient";
  * greeting, live clock, the day's counts, quick capture, today's schedule and
  * sync status — replacing what used to be four separate cards.
  */
+type StatKey = "today" | "week" | "assessments" | "unread";
+
 export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
   const { data, courseFilter } = ctx;
   const router = useRouter();
   const [now, setNow] = useState(new Date());
   const [greeting, setGreeting] = useState("Welcome back");
   const [expanded, setExpanded] = useState(true);
+  const [activeStat, setActiveStat] = useState<StatKey>("today");
 
   useEffect(() => {
     const tick = () => {
@@ -41,64 +46,100 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
   const todayEvents = data.events.filter((e) => isToday(new Date(e.startAt)) && inCourse(e));
 
   const week = 7 * 864e5;
-  const dueThisWeek =
-    data.assignments.filter((a) => a.dueAt && new Date(a.dueAt) > now && new Date(a.dueAt).getTime() - now.getTime() < week && open(a.status) && inCourse(a)).length +
-    data.tasks.filter((t) => t.dueAt && new Date(t.dueAt) > now && new Date(t.dueAt).getTime() - now.getTime() < week && !t.completed && inCourse(t)).length;
-  const upcomingExams = data.quizzes.filter((q) => q.startAt && new Date(q.startAt) > now && q.status === "upcoming" && inCourse(q)).length;
-  const unread = data.announcements.filter((a) => !a.read && inCourse(a)).length;
+  const dueThisWeekAssignments = data.assignments.filter((a) => a.dueAt && new Date(a.dueAt) > now && new Date(a.dueAt).getTime() - now.getTime() < week && open(a.status) && inCourse(a));
+  const dueThisWeekTasks = data.tasks.filter((t) => t.dueAt && new Date(t.dueAt) > now && new Date(t.dueAt).getTime() - now.getTime() < week && !t.completed && inCourse(t));
+  const upcomingAssessments = data.quizzes.filter((q) => q.startAt && new Date(q.startAt) > now && q.status === "upcoming" && inCourse(q));
+  const unreadAnnouncements = data.announcements.filter((a) => !a.read && inCourse(a));
 
   type Row = { time: Date; label: string; sub: string; kind: string; onOpen?: () => void; onComplete?: () => Promise<void> };
-  const rows: Row[] = useMemo(() => {
-    const list: Row[] = [
+
+  const rowsByStat = useMemo<Record<StatKey, Row[]>>(() => {
+    const assignmentRow = (a: (typeof dueToday)[number], suffix: string): Row => ({
+      time: new Date(a.dueAt!),
+      label: a.title,
+      sub: `${a.course.code}${a.weight != null ? ` · ${a.weight}%` : ""}${suffix}`,
+      kind: "assignment",
+      onOpen: () => ctx.openAssignment(a),
+      onComplete: async () => {
+        await fetch(`/api/assignments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
+        toast("Marked complete 🎉");
+        router.refresh();
+      },
+    });
+    const taskRow = (t: (typeof tasksToday)[number]): Row => ({
+      time: new Date(t.dueAt!),
+      label: t.title,
+      sub: t.course?.code ?? "Personal",
+      kind: "task",
+      onComplete: async () => {
+        await fetch(`/api/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ completed: true }) });
+        toast("Task done ✓");
+        router.refresh();
+      },
+    });
+    const quizRow = (q: (typeof quizzesToday)[number]): Row => ({
+      time: new Date(q.startAt!),
+      label: q.title,
+      sub: [q.course.code, q.weight ? `${q.weight}%` : null, q.location].filter(Boolean).join(" · "),
+      kind: "quiz",
+      onOpen: () => ctx.openQuiz(q),
+    });
+
+    const today: Row[] = [
       ...todayEvents.map((e) => ({
         time: new Date(e.startAt),
         label: e.title,
         sub: [e.course?.code, e.location].filter(Boolean).join(" · ") || "Event",
         kind: e.type === "class" ? "class" : "event",
       })),
-      ...dueToday.map((a) => ({
-        time: new Date(a.dueAt!),
-        label: a.title,
-        sub: `${a.course.code}${a.weight != null ? ` · ${a.weight}%` : ""} · due today`,
-        kind: "assignment",
-        onOpen: () => ctx.openAssignment(a),
-        onComplete: async () => {
-          await fetch(`/api/assignments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "completed" }) });
-          toast("Marked complete 🎉");
-          router.refresh();
-        },
-      })),
-      ...quizzesToday.map((q) => ({
-        time: new Date(q.startAt!),
-        label: q.title,
-        sub: [q.course.code, q.weight ? `${q.weight}%` : null, q.location].filter(Boolean).join(" · "),
-        kind: "quiz",
-        onOpen: () => ctx.openQuiz(q),
-      })),
-      ...tasksToday.map((t) => ({
-        time: new Date(t.dueAt!),
-        label: t.title,
-        sub: t.course?.code ?? "Personal",
-        kind: "task",
-        onComplete: async () => {
-          await fetch(`/api/tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ completed: true }) });
-          toast("Task done ✓");
-          router.refresh();
-        },
-      })),
+      ...dueToday.map((a) => assignmentRow(a, " · due today")),
+      ...quizzesToday.map(quizRow),
+      ...tasksToday.map(taskRow),
     ];
-    return list.sort((a, b) => a.time.getTime() - b.time.getTime());
-  }, [todayEvents, dueToday, quizzesToday, tasksToday, ctx, router]);
+    const weekRows: Row[] = [
+      ...dueThisWeekAssignments.map((a) => assignmentRow(a, ` · ${format(new Date(a.dueAt!), "EEE")}`)),
+      ...dueThisWeekTasks.map(taskRow),
+    ];
+    const assessmentRows: Row[] = upcomingAssessments.map(quizRow);
+    const unreadRows: Row[] = unreadAnnouncements.map((an) => ({
+      time: new Date(an.postedAt),
+      label: an.title,
+      sub: [an.course.code, an.author].filter(Boolean).join(" · "),
+      kind: "announcement",
+      onOpen: () => router.push("/announcements"),
+      onComplete: async () => {
+        await fetch(`/api/announcements/${an.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ read: true }) });
+        toast("Marked as read");
+        router.refresh();
+      },
+    }));
+
+    return {
+      today: today.sort((a, b) => a.time.getTime() - b.time.getTime()),
+      week: weekRows.sort((a, b) => a.time.getTime() - b.time.getTime()),
+      assessments: assessmentRows.sort((a, b) => a.time.getTime() - b.time.getTime()),
+      unread: unreadRows.sort((a, b) => b.time.getTime() - a.time.getTime()),
+    };
+  }, [todayEvents, dueToday, quizzesToday, tasksToday, dueThisWeekAssignments, dueThisWeekTasks, upcomingAssessments, unreadAnnouncements, ctx, router]);
+
+  const rows = rowsByStat[activeStat];
 
   const KIND_DOT: Record<string, string> = {
-    class: "bg-sky-500", assignment: "bg-amber-500", quiz: "bg-rose-500", task: "bg-emerald-500", event: "bg-violet-500",
+    class: "bg-sky-500", assignment: "bg-amber-500", quiz: "bg-rose-500", task: "bg-emerald-500", event: "bg-violet-500", announcement: "bg-indigo-500",
   };
 
-  const stats = [
-    { n: dueToday.length + tasksToday.length + quizzesToday.length, label: "due today" },
-    { n: dueThisWeek, label: "this week" },
-    { n: upcomingExams, label: "assessments" },
-    { n: unread, label: "unread" },
+  const STAT_META: Record<StatKey, { label: string; heading: string; empty: string }> = {
+    today: { label: "due today", heading: "Today's schedule", empty: "Nothing scheduled today" },
+    week: { label: "this week", heading: "Due this week", empty: "Nothing due this week" },
+    assessments: { label: "assessments", heading: "Upcoming assessments", empty: "No upcoming quizzes or exams" },
+    unread: { label: "unread", heading: "Unread announcements", empty: "You're all caught up on announcements" },
+  };
+
+  const stats: { key: StatKey; n: number }[] = [
+    { key: "today", n: dueToday.length + tasksToday.length + quizzesToday.length },
+    { key: "week", n: dueThisWeekAssignments.length + dueThisWeekTasks.length },
+    { key: "assessments", n: upcomingAssessments.length },
+    { key: "unread", n: unreadAnnouncements.length },
   ];
 
   return (
@@ -106,11 +147,12 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
       aria-label="Today"
       className="relative overflow-hidden rounded-2xl border border-border-base bg-surface"
     >
-      {/* accent wash keeps the hero visually distinct from the widget grid */}
+      {/* accent wash + top strip keep the hero visually distinct from the widget grid */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-accent" />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-32"
-        style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent)" }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-36"
+        style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent)" }}
       />
       <div className="relative p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -124,22 +166,33 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className={cn(
-                  "rounded-xl border px-3 py-1.5 text-center min-w-[4.5rem]",
-                  s.n > 0 ? "border-border-strong bg-surface-2" : "border-border-base",
-                )}
-              >
-                <p className={cn("text-lg font-semibold tabular-nums leading-tight", s.n > 0 ? "text-foreground" : "text-faint")}>{s.n}</p>
-                <p className="text-[10px] text-muted uppercase tracking-wide">{s.label}</p>
-              </div>
-            ))}
+            {stats.map((s) => {
+              const meta = STAT_META[s.key];
+              const active = activeStat === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => { setActiveStat(s.key); setExpanded(true); }}
+                  aria-pressed={active}
+                  title={`Show ${meta.heading.toLowerCase()}`}
+                  className={cn(
+                    "rounded-xl border px-3 py-1.5 text-center min-w-[4.5rem] transition-colors cursor-pointer",
+                    active
+                      ? "border-accent bg-accent-soft"
+                      : s.n > 0
+                        ? "border-border-strong bg-surface-2 hover:border-accent/60"
+                        : "border-border-base hover:border-border-strong",
+                  )}
+                >
+                  <p className={cn("text-lg font-semibold tabular-nums leading-tight", active ? "text-accent" : s.n > 0 ? "text-foreground" : "text-faint")}>{s.n}</p>
+                  <p className={cn("text-[10px] uppercase tracking-wide", active ? "text-accent" : "text-muted")}>{meta.label}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <QuickCaptureBar />
+        <QuickCaptureBar courses={data.courses} />
 
         <div className="mt-3 rounded-xl border border-border-base bg-surface-2/40">
           <button
@@ -148,7 +201,7 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
             aria-expanded={expanded}
           >
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted grow">
-              Today&apos;s schedule {rows.length > 0 && <span className="text-faint">({rows.length})</span>}
+              {STAT_META[activeStat].heading} {rows.length > 0 && <span className="text-faint">({rows.length})</span>}
             </span>
             {expanded ? <ChevronUp size={14} className="text-muted" /> : <ChevronDown size={14} className="text-muted" />}
           </button>
@@ -156,7 +209,7 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
             <div className="divide-y divide-border-base border-t border-border-base">
               {rows.length === 0 ? (
                 <div className="px-3.5 py-5 text-center">
-                  <p className="text-[13px] font-medium">Nothing scheduled today</p>
+                  <p className="text-[13px] font-medium">{STAT_META[activeStat].empty}</p>
                   <p className="text-xs text-muted mt-0.5">You&apos;re all caught up 🎉 A good day to get ahead.</p>
                   <Button
                     size="xs"
@@ -197,34 +250,81 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
   );
 }
 
-function QuickCaptureBar() {
+const KIND_LABEL: Record<CaptureKind, string> = {
+  assignment: "Assignment", quiz: "Quiz", exam: "Exam", event: "Event", task: "Task",
+  reading: "Reading", project: "Project", presentation: "Presentation", reminder: "Reminder",
+};
+/** Kinds that need a matched course to save (assignments/quizzes/exams live under a course). */
+const NEEDS_COURSE: CaptureKind[] = ["assignment", "quiz", "exam"];
+
+function matchCourse(courseHint: string | null, title: string, courses: CourseLite[]): CourseLite | null {
+  if (courseHint) {
+    const hint = courseHint.replace(/\s/g, "").toUpperCase();
+    const byCode = courses.find((c) => c.code.replace(/\s/g, "").toUpperCase() === hint);
+    if (byCode) return byCode;
+  }
+  const lower = title.toLowerCase();
+  return courses.find((c) => lower.includes(c.name.toLowerCase()) || lower.includes(c.code.toLowerCase())) ?? null;
+}
+
+function QuickCaptureBar({ courses }: { courses: CourseLite[] }) {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [preview, setPreview] = useState<{ title: string; dueAt: string | null; course: { id: string; code: string } | null } | null>(null);
+  const [preview, setPreview] = useState<{ title: string; dueAt: Date | null; course: CourseLite | null; kind: CaptureKind } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function parse() {
+  function parse() {
     if (!text.trim()) return;
-    setBusy(true);
-    const res = await fetch("/api/quick-capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-    if (res.ok) setPreview(await res.json());
-    setBusy(false);
+    // Parsed entirely in the browser so "2pm" resolves in the user's own
+    // timezone rather than the server's.
+    const parsed = parseQuickCapture(text, new Date());
+    const course = matchCourse(parsed.courseHint, parsed.title, courses);
+    const kind = NEEDS_COURSE.includes(parsed.kind) && !course ? "task" : parsed.kind;
+    setPreview({ title: parsed.title, dueAt: parsed.dueAt, course, kind });
   }
 
   async function confirm() {
     if (!preview) return;
     setBusy(true);
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: preview.title, dueAt: preview.dueAt, courseId: preview.course?.id ?? null }),
-    });
-    toast("Task created");
-    setText("");
-    setPreview(null);
-    setBusy(false);
-    router.refresh();
-    window.dispatchEvent(new CustomEvent("nudges:changed"));
+    try {
+      const dueIso = preview.dueAt?.toISOString() ?? null;
+      let url = "";
+      let body: Record<string, unknown> = {};
+      switch (preview.kind) {
+        case "assignment":
+          url = "/api/assignments";
+          body = { courseId: preview.course!.id, title: preview.title, dueAt: dueIso };
+          break;
+        case "quiz":
+        case "exam":
+          url = "/api/quizzes";
+          body = { courseId: preview.course!.id, title: preview.title, kind: preview.kind === "exam" ? "exam" : "quiz", startAt: dueIso };
+          break;
+        case "event":
+          url = "/api/events";
+          body = { title: preview.title, type: "personal", startAt: dueIso ?? new Date().toISOString(), courseId: preview.course?.id ?? null };
+          break;
+        default:
+          url = "/api/tasks";
+          body = { title: preview.title, kind: preview.kind, dueAt: dueIso, courseId: preview.course?.id ?? null };
+      }
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.error) {
+        toast(data?.error ?? "Could not save — check the details and try again", "error");
+        setBusy(false);
+        return;
+      }
+      toast(`${KIND_LABEL[preview.kind]} added`);
+      setText("");
+      setPreview(null);
+      setBusy(false);
+      router.refresh();
+      window.dispatchEvent(new CustomEvent("nudges:changed"));
+    } catch {
+      toast("Could not save — check your connection", "error");
+      setBusy(false);
+    }
   }
 
   return (
@@ -245,15 +345,35 @@ function QuickCaptureBar() {
         </Button>
       </form>
       {preview && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-border-base bg-surface-2 px-3 py-2">
-          <span className="text-[13px] font-medium">{preview.title}</span>
-          <span className="text-xs text-muted">
-            {preview.dueAt ? format(new Date(preview.dueAt), "MMM d, h:mm a") : "no date detected"}
-            {preview.course ? ` · ${preview.course.code}` : ""}
-          </span>
-          <span className="grow" />
-          <Button size="xs" variant="primary" onClick={confirm} disabled={busy}>Save</Button>
-          <Button size="xs" variant="ghost" onClick={() => setPreview(null)}>Discard</Button>
+        <div className="mt-2 rounded-lg border border-border-base bg-surface-2 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-medium">{preview.title}</span>
+            <span className="text-xs text-muted">
+              {preview.dueAt ? format(preview.dueAt, "MMM d, h:mm a") : "no date detected"}
+              {preview.course ? ` · ${preview.course.code}` : ""}
+            </span>
+            <span className="grow" />
+            <Button size="xs" variant="primary" onClick={confirm} disabled={busy}>Save</Button>
+            <Button size="xs" variant="ghost" onClick={() => setPreview(null)}>Discard</Button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {(Object.keys(KIND_LABEL) as CaptureKind[])
+              .filter((k) => !NEEDS_COURSE.includes(k) || preview.course)
+              .map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setPreview((p) => (p ? { ...p, kind: k } : p))}
+                  aria-pressed={preview.kind === k}
+                  className={cn(
+                    "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    preview.kind === k ? "border-accent bg-accent-soft text-accent" : "border-border-base text-muted hover:text-foreground",
+                  )}
+                >
+                  {KIND_LABEL[k]}
+                </button>
+              ))}
+          </div>
         </div>
       )}
     </div>
