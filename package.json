@@ -14,7 +14,8 @@
     "setup": "pnpm install && prisma migrate dev && pnpm db:seed",
     "postinstall": "prisma generate",
     "db:deploy": "prisma migrate deploy",
-    "create-user": "tsx --env-file=.env scripts/create-user.ts"
+    "create-user": "tsx --env-file=.env scripts/create-user.ts",
+    "seed-sample-data": "tsx --env-file=.env scripts/seed-sample-data.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

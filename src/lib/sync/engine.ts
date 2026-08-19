@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getBrightspaceService } from "@/lib/brightspace/BrightspaceService";
 import { brightspaceEnabled } from "@/lib/brightspace/config";
+import type { BrightspaceService } from "@/lib/brightspace/BrightspaceService";
 
 export interface SyncDetail {
   action: "added" | "updated" | "removed" | "conflict";
@@ -63,14 +64,19 @@ function d(iso: string | undefined | null): Date | null {
   return iso ? new Date(iso) : null;
 }
 
-export async function runSync(userId: string): Promise<SyncResult> {
-  // Manual mode: no source is configured, so there is nothing to sync and
-  // nothing should be written.
-  if (!brightspaceEnabled()) {
+/**
+ * @param serviceOverride Bypasses the manual-mode gate and env-based service
+ * selection — for trusted callers only (e.g. scripts/seed-sample-data.ts,
+ * which explicitly wants the mock tenant regardless of BRIGHTSPACE_MODE).
+ * The app's own /api/sync route never passes this, so production behavior
+ * (refuse to sync when Brightspace isn't configured) is unchanged.
+ */
+export async function runSync(userId: string, serviceOverride?: BrightspaceService): Promise<SyncResult> {
+  if (!serviceOverride && !brightspaceEnabled()) {
     return { logId: "", status: "error", added: 0, updated: 0, removed: 0, errors: 1, details: [] };
   }
   const generation = await db.syncLog.count({ where: { userId, status: "success" } });
-  const service = getBrightspaceService(generation, userId);
+  const service = serviceOverride ?? getBrightspaceService(generation, userId);
   const log = await db.syncLog.create({ data: { userId, status: "running" } });
 
   const details: SyncDetail[] = [];

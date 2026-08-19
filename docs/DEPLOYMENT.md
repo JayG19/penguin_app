@@ -93,6 +93,37 @@ never overwrite it — with a "Restore Brightspace value" button if you change
 your mind. Manual courses that also exist in Brightspace will appear twice
 though; delete your manual copy after the first sync.
 
+## Loading sample data into a real account
+
+To explore the app with realistic content — four courses, assignments, quizzes,
+grades, announcements, notes, a class schedule, study history — without creating
+a separate demo account, run:
+
+```bash
+npx tsx --env-file=.env scripts/seed-sample-data.ts you@example.com
+```
+
+Point `.env`'s `DATABASE_URL` at whichever database you want it in — your local
+one for local exploration, or your production Neon string to see it on the live
+site. The account must already exist (register first) and must not already have
+any courses — it refuses to run twice against the same account to avoid
+duplicating notes and tasks. This works regardless of `BRIGHTSPACE_MODE`; it's a
+deliberate one-off import, separate from the "Sync Now" button, which still
+correctly refuses to do anything in manual mode.
+
+## Updating the live app
+
+Vercel is watching the `main` branch on GitHub. Any commit pushed there
+triggers an automatic build and deploy — typically live within a minute or two,
+visible under the project's **Deployments** tab. Database schema changes ship
+the same way: the build command runs `prisma migrate deploy` before `next
+build`, so a new Prisma migration is applied automatically on deploy, no manual
+step required.
+
+If Claude makes further changes in a session, they'll be committed and pushed
+the same way this deployment was — nothing else to do on your end beyond
+watching the deploy and refreshing the site.
+
 ## Local development
 
 Keep using a local database and demo data:
