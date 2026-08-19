@@ -231,8 +231,8 @@ src/app/(app)/          dashboard, courses, assignments, quizzes, calendar, anno
 src/components/         design system (ui.tsx), shell (sidebar/topbar/⌘K/quick-add),
                         dashboard widgets, drawers, focus timer
 docs/BRIGHTSPACE.md     live-integration setup guide
-penguin_app.py, penguin.csv, requirements.txt, setup.sh, Procfile.txt
-                        the repository's previous Streamlit demo (untouched)
+legacy/                 the repository's previous Streamlit demo, moved here so its
+                        requirements.txt doesn't make Vercel try to build it as Python
 ```
 
 ## Production notes

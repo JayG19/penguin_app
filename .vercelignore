@@ -1,0 +1,3 @@
+# Legacy Streamlit demo — kept for history, must never be picked up by
+# Vercel's zero-config framework/runtime detection.
+legacy/
