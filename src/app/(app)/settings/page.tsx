@@ -21,7 +21,6 @@ export default async function SettingsPage() {
         accent: pref?.accent ?? "indigo",
         customAccent: pref?.customAccent ?? null,
         background: pref?.background ?? "plain",
-        backgroundUrl: pref?.backgroundUrl ?? null,
         priorityScheme: pref?.priorityScheme ?? "classic",
         density: pref?.density ?? "comfortable",
       }}

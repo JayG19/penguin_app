@@ -31,7 +31,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     accent: preference?.accent ?? "indigo",
     customAccent: preference?.customAccent ?? null,
     background: preference?.background ?? "plain",
-    backgroundUrl: preference?.backgroundUrl ?? null,
     priorityScheme: preference?.priorityScheme ?? "classic",
     density: preference?.density ?? "comfortable",
   };
@@ -43,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-dvh">
         <Sidebar unreadAnnouncements={unread} />
         <div className="flex min-w-0 grow flex-col">
-          <Topbar userName={user.name} courses={courses} />
+          <Topbar userName={user.name} email={user.email} courses={courses} />
           <main className="grow px-3 sm:px-5 lg:px-7 py-4 sm:py-6 pb-24 lg:pb-8 max-w-[1400px] w-full mx-auto">
             {children}
           </main>

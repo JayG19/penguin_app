@@ -70,7 +70,14 @@ export function Badge({
   className,
   ...props
 }: React.HTMLAttributes<HTMLSpanElement> & {
-  tone?: "neutral" | "green" | "amber" | "red" | "blue" | "violet" | "accent";
+  // "none" opts out of the tone's own bg/text classes for badges that pass
+  // their own color via className (e.g. per-course colors) — without it,
+  // the tone's classes and the custom className fight over the same CSS
+  // property with equal specificity, and the winner is decided by Tailwind's
+  // generated rule order rather than JSX class order, so it silently
+  // "worked" for some colors and not others (e.g. some course tags
+  // rendering without their color).
+  tone?: "neutral" | "green" | "amber" | "red" | "blue" | "violet" | "accent" | "none";
 }) {
   return (
     <span
@@ -550,29 +557,33 @@ export function toast(message: string, tone: "default" | "error" = "default") {
   listeners.forEach((l) => l(t));
 }
 
+const TOAST_DURATION_MS = 3000;
+
 export function Toaster() {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  // Only ever one toast on screen: a new one replaces whatever's showing,
+  // instead of stacking up when several changes save in quick succession.
+  const [current, setCurrent] = useState<Toast | null>(null);
   useEffect(() => {
     const l = (t: Toast) => {
-      setToasts((prev) => [...prev, t]);
-      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== t.id)), 3200);
+      setCurrent(t);
+      setTimeout(() => setCurrent((prev) => (prev?.id === t.id ? null : prev)), TOAST_DURATION_MS);
     };
     listeners.add(l);
     return () => void listeners.delete(l);
   }, []);
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2 items-center pointer-events-none" aria-live="polite">
-      {toasts.map((t) => (
+      {current && (
         <div
-          key={t.id}
+          key={current.id}
           className={cn(
             "rounded-lg border px-3.5 py-2 text-[13px] shadow-lg bg-surface",
-            t.tone === "error" ? "border-rose-500/40 text-rose-600 dark:text-rose-400" : "border-border-base",
+            current.tone === "error" ? "border-rose-500/40 text-rose-600 dark:text-rose-400" : "border-border-base",
           )}
         >
-          {t.message}
+          {current.message}
         </div>
-      ))}
+      )}
     </div>
   );
 }

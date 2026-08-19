@@ -156,7 +156,7 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
                 <span className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", a.read ? "bg-border-strong" : "bg-accent")} />
                 <span className="min-w-0 grow">
                   <span className="flex items-center gap-2 flex-wrap">
-                    <Badge className={cn(courseColor(a.course.color).soft, courseColor(a.course.color).text)}>{a.course.code}</Badge>
+                    <Badge tone="none" className={cn(courseColor(a.course.color).soft, courseColor(a.course.color).text)}>{a.course.code}</Badge>
                     <span className="text-[11px] text-faint">{timeAgo(a.postedAt)}</span>
                     <SourceBadge source={a.source} />
                   </span>

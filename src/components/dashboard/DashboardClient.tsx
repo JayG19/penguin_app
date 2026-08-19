@@ -9,6 +9,7 @@ import {
   SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
 import { Button, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -235,11 +236,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             })}
           </div>
         </SortableContext>
-        <DragOverlay>
+        <DragOverlay modifiers={[restrictToWindowEdges]}>
           {activeDef ? (
-            <div className="rounded-xl border-2 border-accent bg-surface shadow-2xl opacity-95 rotate-1 scale-[1.02]">
+            <div className="w-64 max-w-[80vw] rounded-xl border-2 border-accent bg-surface shadow-2xl opacity-95 rotate-1 scale-[1.02]">
               <div className="px-4 pt-3.5 pb-2">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent">{activeDef.title}</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent truncate">{activeDef.title}</h3>
               </div>
               <div className="px-4 pb-4 text-xs text-muted">Moving…</div>
             </div>

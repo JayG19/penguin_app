@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlarmClock, Bell, Check, Clock3, Image as ImageIcon, Monitor, Moon, Palette, RefreshCw, Sun, User } from "lucide-react";
+import { AlarmClock, Bell, Check, Clock3, Monitor, Moon, Palette, RefreshCw, Sun, User } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Select, Switch, toast } from "@/components/ui";
 import { ACCENTS, BACKGROUNDS, PRIORITY_SCHEMES, accentVarsFromHex, applyAppearance, type AppearanceState } from "@/lib/appearance";
 import { COMMON_TIMEZONES, detectTimezone, timezoneLabel } from "@/lib/timezone";
@@ -87,7 +87,6 @@ export function SettingsClient({
   const [appearance, setAppearance] = useState(initialAppearance);
   const [nudges, setNudges] = useState(initialNudges);
   const [mode, setMode] = useState(syncMode);
-  const [imageUrl, setImageUrl] = useState(initialAppearance.backgroundUrl ?? "");
   const [customHex, setCustomHex] = useState(initialAppearance.customAccent ?? "#4f46e5");
   const [tzMode, setTzMode] = useState<"auto" | "manual">(initialTimezone ? "manual" : "auto");
   const [timezone, setTimezone] = useState(initialTimezone ?? "");
@@ -257,13 +256,25 @@ export function SettingsClient({
                   <Palette size={13} className="pointer-events-none text-white drop-shadow" />
                 )}
               </label>
+              <Input
+                value={customHex}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCustomHex(v);
+                  if (/^#[0-9a-fA-F]{6}$/.test(v)) updateAppearance({ accent: "custom", customAccent: v }, "Custom accent set");
+                }}
+                placeholder="#4f46e5"
+                maxLength={7}
+                className="w-28 font-mono text-[13px]"
+                aria-label="Custom accent colour hex code"
+              />
             </div>
-            <p className="text-[11px] text-faint mt-1.5">Pick any colour — the whole app restyles around it instantly.</p>
+            <p className="text-[11px] text-faint mt-1.5">Pick any colour, or type its hex code — the whole app restyles around it instantly.</p>
           </div>
 
           <div>
             <Label>Background</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {BACKGROUNDS.map((b) => (
                 <button
                   key={b.key}
@@ -285,36 +296,13 @@ export function SettingsClient({
                             ? "radial-gradient(var(--border-strong) 0.8px, transparent 0.8px) 0 0 / 8px 8px"
                             : b.key === "glow"
                               ? "radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 70%)"
-                              : b.key === "custom"
-                                ? "var(--surface-2)"
-                                : "var(--surface-2)",
+                              : "var(--surface-2)",
                     }}
-                  >
-                    {b.key === "custom" && (
-                      <ImageIcon size={13} className="m-auto mt-2 block text-muted" />
-                    )}
-                  </span>
+                  />
                   <span className="text-[11px] font-medium">{b.label}</span>
                 </button>
               ))}
             </div>
-            {appearance.background === "custom" && (
-              <div className="mt-2 flex gap-2">
-                <Input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://…/photo.jpg"
-                  aria-label="Background image URL"
-                />
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => updateAppearance({ backgroundUrl: imageUrl || null }, "Background updated")}
-                >
-                  Apply
-                </Button>
-              </div>
-            )}
           </div>
 
           <div>

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, RotateCcw, StickyNote, Timer, Trash2 } from "lucide-react";
 import { Badge, Button, Drawer, Input, Label, Select, SourceBadge, toast } from "@/components/ui";
 import type { QuizDTO } from "@/components/types";
-import { cn, countdown, courseColor, fmtDate } from "@/lib/utils";
+import { cn, countdown, courseColor, fmtDate, urgencyColor } from "@/lib/utils";
 import { RemindButton } from "@/components/nudges/RemindButton";
 
 const KIND_LABEL: Record<string, string> = { quiz: "Quiz", midterm: "Midterm", final: "Final Exam", exam: "Exam" };
@@ -85,7 +85,7 @@ export function QuizDrawer({
 
         {cd && (
           <div className="rounded-lg border border-border-base bg-surface-2 p-3 text-center">
-            <p className="text-lg font-semibold tabular-nums">{cd}</p>
+            <p className="text-lg font-semibold tabular-nums" style={{ color: urgencyColor(current.startAt!) }}>{cd}</p>
             <p className="text-xs text-muted">{current.startAt ? fmtDate(current.startAt, true) : ""}</p>
           </div>
         )}

@@ -153,7 +153,7 @@ export function NotesClient({
                 </div>
                 <p className="text-xs text-muted truncate mt-0.5">{n.body.replace(/[#*`>\-[\]]/g, "").slice(0, 60) || "Empty note"}</p>
                 <div className="flex items-center gap-1.5 mt-1.5">
-                  {n.course && <Badge className={cn(courseColor(n.course.color).soft, courseColor(n.course.color).text)}>{n.course.code}</Badge>}
+                  {n.course && <Badge tone="none" className={cn(courseColor(n.course.color).soft, courseColor(n.course.color).text)}>{n.course.code}</Badge>}
                   {n.topic && <Badge>{n.topic}</Badge>}
                   <span className="text-[10px] text-faint ml-auto">{timeAgo(n.updatedAt)}</span>
                 </div>

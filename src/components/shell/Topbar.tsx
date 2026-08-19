@@ -26,7 +26,7 @@ interface NotificationRow {
   createdAt: string;
 }
 
-export function Topbar({ userName, courses }: { userName: string; courses: CourseLite[] }) {
+export function Topbar({ userName, email, courses }: { userName: string; email: string; courses: CourseLite[] }) {
   const router = useRouter();
   const [theme, setTheme] = useState<string>("system");
   const [notifs, setNotifs] = useState<NotificationRow[]>([]);
@@ -192,7 +192,7 @@ export function Topbar({ userName, courses }: { userName: string; courses: Cours
       >
         <div className="px-3 py-2 border-b border-border-base">
           <p className="text-[13px] font-medium">{userName}</p>
-          <p className="text-xs text-muted">Demo University</p>
+          <p className="text-xs text-muted truncate">{email}</p>
         </div>
         <MenuItem onClick={() => router.push("/settings")}>Settings</MenuItem>
         <MenuItem onClick={() => { toast("Signed out"); logout(); }} danger>

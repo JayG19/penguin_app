@@ -48,8 +48,7 @@ model UserPreference {
   // Appearance
   accent         String  @default("indigo") // accent palette key, or "custom"
   customAccent   String? // hex colour, used when accent = "custom"
-  background     String  @default("plain")  // plain | mesh | grid | glow | custom
-  backgroundUrl  String? // used when background = "custom"
+  background     String  @default("plain")  // plain | mesh | grid | glow
   priorityScheme String  @default("classic") // classic | colorblind | mono
   density        String  @default("comfortable") // comfortable | compact
 

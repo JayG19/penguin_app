@@ -37,21 +37,32 @@ interface CalItem {
   recurring?: boolean;
 }
 
-const RECUR_LABEL: Record<string, string> = { daily: "Daily", weekly: "Weekly", biweekly: "Every 2 weeks", monthly: "Monthly" };
+const UNIT_LABEL: Record<string, string> = { daily: "day", weekly: "week", monthly: "month" };
+
+/** "weekly:1:" → "Weekly", "weekly:3:" → "Every 3 weeks", "weekly:2:" → "Every 2 weeks". */
+function recurrenceLabel(recurrence: string): string {
+  if (!recurrence) return "";
+  const [unit, intervalStr] = recurrence.split(":");
+  const interval = parseInt(intervalStr, 10) || 1;
+  const unitLabel = UNIT_LABEL[unit] ?? unit;
+  if (interval === 1) return unit === "daily" ? "Daily" : unit === "weekly" ? "Weekly" : "Monthly";
+  return `Every ${interval} ${unitLabel}s`;
+}
 
 /** Expands a recurring event into its individual occurrences for display —
- * stored as one row with a `recurrence` string, materialized client-side so
- * the backend and data model stay simple. Capped so an endless recurrence
- * doesn't run away. */
+ * stored as one row with a "<unit>:<interval>:<until?>" recurrence string,
+ * materialized client-side so the backend and data model stay simple.
+ * Capped so an endless recurrence doesn't run away. */
 function expandOccurrences(e: EventDTO): { start: Date; end: Date | null }[] {
   const start = new Date(e.startAt);
   const end = e.endAt ? new Date(e.endAt) : null;
   if (!e.recurrence) return [{ start, end }];
-  const [freq, untilStr] = e.recurrence.split(":");
+  const [unit, intervalStr, untilStr] = e.recurrence.split(":");
+  const interval = Math.max(1, parseInt(intervalStr, 10) || 1);
   const duration = end ? end.getTime() - start.getTime() : null;
   const until = untilStr ? new Date(`${untilStr}T23:59:59`) : addYears(start, 2);
   const step = (d: Date) =>
-    freq === "daily" ? addDays(d, 1) : freq === "biweekly" ? addWeeks(d, 2) : freq === "monthly" ? addMonths(d, 1) : addWeeks(d, 1);
+    unit === "daily" ? addDays(d, interval) : unit === "monthly" ? addMonths(d, interval) : addWeeks(d, interval);
   const occurrences: { start: Date; end: Date | null }[] = [];
   let cur = start;
   let n = 0;
@@ -359,7 +370,7 @@ export function CalendarClient({
         {selected && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge className={KIND_STYLE[selected.kind]?.chip}>{KIND_STYLE[selected.kind]?.label}</Badge>
+              <Badge tone="none" className={KIND_STYLE[selected.kind]?.chip}>{KIND_STYLE[selected.kind]?.label}</Badge>
               <SourceBadge source={selected.source} />
               {selected.weight != null && selected.weight > 0 && <Badge>{selected.weight}%</Badge>}
             </div>
@@ -371,7 +382,7 @@ export function CalendarClient({
             {selected.recurring && (
               <p className="flex items-center gap-1.5 text-xs text-muted">
                 <Repeat size={12} />
-                Repeats {(RECUR_LABEL[events.find((e) => e.id === selected.id)?.recurrence?.split(":")[0] ?? ""] ?? "").toLowerCase()}
+                Repeats {(recurrenceLabel(events.find((e) => e.id === selected.id)?.recurrence ?? "") || "").toLowerCase()}
               </p>
             )}
             {selected.description && <p className="text-[13px] text-muted whitespace-pre-wrap">{selected.description}</p>}

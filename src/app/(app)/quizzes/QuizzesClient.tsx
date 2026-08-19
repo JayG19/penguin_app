@@ -6,7 +6,7 @@ import { FileQuestion, MapPin, Plus } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Segmented, Select, SourceBadge } from "@/components/ui";
 import { QuizDrawer } from "@/components/QuizDrawer";
 import type { CourseDTO, QuizDTO } from "@/components/types";
-import { cn, countdown, courseColor, fmtDate } from "@/lib/utils";
+import { cn, countdown, courseColor, fmtDate, urgencyColor } from "@/lib/utils";
 
 const KIND_LABEL: Record<string, string> = { quiz: "Quiz", midterm: "Midterm", final: "Final", exam: "Exam" };
 
@@ -125,7 +125,7 @@ export function QuizzesClient({ quizzes, courses }: { quizzes: QuizDTO[]; course
                   </div>
                   <div className="text-right shrink-0">
                     {q.weight != null && q.weight > 0 && <p className="text-sm font-semibold tabular-nums">{q.weight}%</p>}
-                    {cd && <p className={cn("text-xs tabular-nums", heavy ? "text-rose-600 dark:text-rose-400 font-medium" : "text-muted")}>{cd}</p>}
+                    {cd && <p className={cn("text-xs tabular-nums", heavy && "font-medium")} style={{ color: urgencyColor(q.startAt!) }}>{cd}</p>}
                     {q.status !== "upcoming" && <Badge tone={q.status === "completed" ? "green" : "red"}>{q.status}</Badge>}
                   </div>
                 </div>

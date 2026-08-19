@@ -71,7 +71,7 @@ export function ContactsClient({ contacts, courses }: { contacts: ContactDTO[]; 
                     <p className="text-[14px] font-medium truncate">{c.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Badge tone={c.role === "professor" ? "accent" : "blue"}>{c.role === "ta" ? "TA" : "Professor"}</Badge>
-                      {c.course && <Badge className={cn(courseColor(c.course.color).soft, courseColor(c.course.color).text)}>{c.course.code}</Badge>}
+                      {c.course && <Badge tone="none" className={cn(courseColor(c.course.color).soft, courseColor(c.course.color).text)}>{c.course.code}</Badge>}
                     </div>
                   </div>
                 </div>

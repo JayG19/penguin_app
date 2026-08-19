@@ -62,6 +62,36 @@ export function countdown(d: Date | string): string | null {
   return `${rem}m remaining`;
 }
 
+const URGENCY_STOPS: [number, [number, number, number]][] = [
+  [14, [156, 163, 175]], // grey  (14+ days out)
+  [7, [234, 179, 8]],    // yellow (1 week out)
+  [2, [249, 115, 22]],   // orange (2 days out)
+  [0, [239, 68, 68]],    // red    (due now / overdue)
+];
+
+function rgbString(c: [number, number, number]): string {
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+/** Grey → yellow → orange → red as a deadline approaches, interpolated smoothly by days remaining. */
+export function urgencyColor(d: Date | string, now = new Date()): string {
+  const days = (new Date(d).getTime() - now.getTime()) / 864e5;
+  const first = URGENCY_STOPS[0];
+  const last = URGENCY_STOPS[URGENCY_STOPS.length - 1];
+  if (days >= first[0]) return rgbString(first[1]);
+  if (days <= last[0]) return rgbString(last[1]);
+  for (let i = 0; i < URGENCY_STOPS.length - 1; i++) {
+    const [hiDays, hiColor] = URGENCY_STOPS[i];
+    const [loDays, loColor] = URGENCY_STOPS[i + 1];
+    if (days <= hiDays && days > loDays) {
+      const t = (hiDays - days) / (hiDays - loDays);
+      const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
+      return rgbString([mix(hiColor[0], loColor[0]), mix(hiColor[1], loColor[1]), mix(hiColor[2], loColor[2])]);
+    }
+  }
+  return rgbString(last[1]);
+}
+
 export function fmtMinutes(total: number): string {
   const h = Math.floor(total / 60);
   const m = total % 60;

@@ -26,7 +26,6 @@ export const BACKGROUNDS = [
   { key: "mesh", label: "Aurora", hint: "Soft accent gradient" },
   { key: "grid", label: "Grid", hint: "Subtle dotted grid" },
   { key: "glow", label: "Glow", hint: "Accent glow behind content" },
-  { key: "custom", label: "Image", hint: "Your own image URL" },
 ] as const;
 
 export const PRIORITY_SCHEMES = [
@@ -41,7 +40,6 @@ export interface AppearanceState {
   /** Arbitrary hex color, used when accent === "custom". */
   customAccent: string | null;
   background: string;
-  backgroundUrl: string | null;
   priorityScheme: string;
   density: string;
 }
@@ -51,7 +49,6 @@ export const DEFAULT_APPEARANCE: AppearanceState = {
   accent: "indigo",
   customAccent: null,
   background: "plain",
-  backgroundUrl: null,
   priorityScheme: "classic",
   density: "comfortable",
 };
@@ -104,12 +101,6 @@ export function applyAppearance(a: Partial<AppearanceState>) {
     root.style.setProperty("--accent-dark-soft", vars.darkSoft);
   }
   if (a.background) root.dataset.bg = a.background;
-  if (a.backgroundUrl !== undefined) {
-    // JSON.stringify produces a properly quoted-and-escaped string, which is
-    // also valid inside a CSS url(...) — CSS.escape is for identifiers, not
-    // string contents, and mangles URLs if used here.
-    root.style.setProperty("--bg-image", a.backgroundUrl ? `url(${JSON.stringify(a.backgroundUrl)})` : "none");
-  }
   if (a.priorityScheme) root.dataset.priority = a.priorityScheme;
   if (a.density) root.dataset.density = a.density;
 }

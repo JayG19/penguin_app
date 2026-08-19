@@ -11,7 +11,8 @@ const createSchema = z.object({
   location: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   courseId: z.string().nullable().optional(),
-  recurrence: z.enum(["daily", "weekly", "biweekly", "monthly"]).nullable().optional(),
+  recurrenceUnit: z.enum(["daily", "weekly", "monthly"]).nullable().optional(),
+  recurrenceInterval: z.number().int().min(1).max(99).nullable().optional(),
   recurrenceUntil: z.string().datetime().nullable().optional(),
 });
 
@@ -30,15 +31,23 @@ export const GET = withAuth(async (req, user) => {
   return ok({ events });
 });
 
+/** Stored as "<unit>:<interval>:<untilDate?>", e.g. "weekly:1:" or "weekly:3:2026-12-15" — a
+ * uniform interval-based encoding, so "every N days/weeks/months" (the presets *and* any custom
+ * interval) all parse the same way. */
+function encodeRecurrence(unit: string | null | undefined, interval: number | null | undefined, until: string | null | undefined) {
+  if (!unit || !interval) return null;
+  return `${unit}:${interval}:${until ? until.slice(0, 10) : ""}`;
+}
+
 export const POST = withAuth(async (req, user) => {
-  const { recurrence, recurrenceUntil, ...data } = createSchema.parse(await req.json());
+  const { recurrenceUnit, recurrenceInterval, recurrenceUntil, ...data } = createSchema.parse(await req.json());
   const event = await db.calendarEvent.create({
     data: {
       ...data,
       userId: user.id,
       startAt: new Date(data.startAt),
       endAt: data.endAt ? new Date(data.endAt) : null,
-      recurrence: recurrence ? `${recurrence}${recurrenceUntil ? `:${recurrenceUntil.slice(0, 10)}` : ""}` : null,
+      recurrence: encodeRecurrence(recurrenceUnit, recurrenceInterval, recurrenceUntil),
       source: "manual",
     },
     include: { course: true },

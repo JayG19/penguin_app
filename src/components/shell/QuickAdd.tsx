@@ -27,6 +27,13 @@ const TYPES: { type: AddType; label: string; icon: React.ComponentType<{ size?: 
 
 interface CourseLite { id: string; code: string; name: string }
 
+const RECUR_PRESETS: Record<string, { unit: string; interval: number }> = {
+  daily: { unit: "daily", interval: 1 },
+  weekly: { unit: "weekly", interval: 1 },
+  biweekly: { unit: "weekly", interval: 2 },
+  monthly: { unit: "monthly", interval: 1 },
+};
+
 export function QuickAdd() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -123,7 +130,12 @@ export function QuickAdd() {
             topic: form.topic || null,
           };
           break;
-        case "event":
+        case "event": {
+          const recur = !form.recurrence
+            ? null
+            : form.recurrence === "custom"
+              ? { unit: form.recurrenceUnit || "weekly", interval: Math.max(1, Number(form.recurrenceInterval) || 1) }
+              : RECUR_PRESETS[form.recurrence];
           url = "/api/events";
           body = {
             title: form.title,
@@ -133,10 +145,12 @@ export function QuickAdd() {
             location: form.location || null,
             courseId: form.courseId || null,
             description: form.description || null,
-            recurrence: form.recurrence || null,
-            recurrenceUntil: form.recurrence && form.recurrenceUntil ? new Date(`${form.recurrenceUntil}T23:59:59`).toISOString() : null,
+            recurrenceUnit: recur?.unit ?? null,
+            recurrenceInterval: recur?.interval ?? null,
+            recurrenceUntil: recur && form.recurrenceUntil ? new Date(`${form.recurrenceUntil}T23:59:59`).toISOString() : null,
           };
           break;
+        }
         case "course":
           url = "/api/courses";
           body = { code: form.code, name: form.title, term: form.term || "Fall 2026", description: form.description || null, color: form.color || "indigo" };
@@ -328,21 +342,50 @@ export function QuickAdd() {
             )}
 
             {type === "event" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="qa-recur">Repeats</Label>
-                  <Select id="qa-recur" value={form.recurrence ?? ""} onChange={(e) => set("recurrence", e.target.value)}>
-                    <option value="">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="biweekly">Every 2 weeks</option>
-                    <option value="monthly">Monthly</option>
-                  </Select>
-                </div>
-                {form.recurrence && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="qa-recur-until">Repeat until (optional)</Label>
-                    <Input id="qa-recur-until" type="date" value={form.recurrenceUntil ?? ""} onChange={(e) => set("recurrenceUntil", e.target.value)} />
+                    <Label htmlFor="qa-recur">Repeats</Label>
+                    <Select id="qa-recur" value={form.recurrence ?? ""} onChange={(e) => set("recurrence", e.target.value)}>
+                      <option value="">Does not repeat</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="biweekly">Every 2 weeks</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="custom">Custom…</option>
+                    </Select>
+                  </div>
+                  {form.recurrence && (
+                    <div>
+                      <Label htmlFor="qa-recur-until">Repeat until (optional)</Label>
+                      <Input id="qa-recur-until" type="date" value={form.recurrenceUntil ?? ""} onChange={(e) => set("recurrenceUntil", e.target.value)} />
+                    </div>
+                  )}
+                </div>
+                {form.recurrence === "custom" && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="qa-recur-interval" className="mb-0 shrink-0">Every</Label>
+                    <Input
+                      id="qa-recur-interval"
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={form.recurrenceInterval ?? "1"}
+                      onChange={(e) => set("recurrenceInterval", e.target.value)}
+                      className="w-16"
+                    />
+                    <Select
+                      id="qa-recur-unit"
+                      value={form.recurrenceUnit ?? "weekly"}
+                      onChange={(e) => set("recurrenceUnit", e.target.value)}
+                      className="w-auto"
+                      aria-label="Recurrence unit"
+                    >
+                      <option value="daily">day(s)</option>
+                      <option value="weekly">week(s)</option>
+                      <option value="monthly">month(s)</option>
+                    </Select>
+                    <span className="text-xs text-muted">on {form.date ? new Date(`${form.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long" }) : "the chosen date"}</span>
                   </div>
                 )}
               </div>
