@@ -42,6 +42,7 @@ export interface DashboardData {
   lastSync: SyncLogDTO | null;
   tools: ToolDTO[];
   unreadByCourse: Record<string, number>;
+  brightspaceEnabled: boolean;
   recentNotes?: NoteDTO[];
 }
 

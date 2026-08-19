@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { serialize } from "@/lib/serialize";
+import { brightspaceMode, missingLiveConfig } from "@/lib/brightspace/config";
 import type { SyncLogDTO } from "@/components/types";
 import { SyncClient } from "./SyncClient";
 
@@ -14,8 +15,8 @@ export default async function SyncPage() {
     orderBy: { startedAt: "desc" },
     take: 20,
   });
-  const mode = process.env.BRIGHTSPACE_MODE === "live" ? "live" : "mock";
-  const connected = mode === "live" ? !!(await db.brightspaceConnection.findUnique({ where: { userId: user.id } })) : true;
+  const mode = brightspaceMode();
+  const connected = mode === "live" ? !!(await db.brightspaceConnection.findUnique({ where: { userId: user.id } })) : mode === "mock";
   const pref = await db.userPreference.findUnique({ where: { userId: user.id } });
 
   return (
@@ -23,6 +24,7 @@ export default async function SyncPage() {
       logs={serialize<SyncLogDTO[]>(logs)}
       mode={mode}
       connected={connected}
+      missingConfig={missingLiveConfig()}
       syncMode={pref?.syncMode ?? "manual"}
       syncIntervalMins={pref?.syncIntervalMins ?? 30}
     />

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
@@ -9,11 +10,12 @@ import type { SyncDetail } from "@/lib/sync/engine";
 import { cn, timeAgo, fmtDate } from "@/lib/utils";
 
 export function SyncClient({
-  logs, mode, connected, syncMode, syncIntervalMins,
+  logs, mode, connected, missingConfig, syncMode, syncIntervalMins,
 }: {
   logs: SyncLogDTO[];
-  mode: "mock" | "live";
+  mode: "off" | "mock" | "live";
   connected: boolean;
+  missingConfig: string[];
   syncMode: string;
   syncIntervalMins: number;
 }) {
@@ -29,7 +31,7 @@ export function SyncClient({
       const res = await fetch("/api/sync", { method: "POST" });
       const r = await res.json();
       if (r.status === "success") toast(`Sync complete: +${r.added} added, ${r.updated} updated, ${r.removed} removed`);
-      else toast("Sync finished with errors", "error");
+      else toast(r.error ?? "Sync finished with errors", "error");
       router.refresh();
     } catch {
       toast("Sync failed", "error");
@@ -63,12 +65,14 @@ export function SyncClient({
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Brightspace Integration</h1>
           <p className="text-[13px] text-muted">
-            {mode === "mock"
-              ? "Demo mode — realistic mock Brightspace data behind the same service interface as the live API."
-              : connected ? "Live mode — connected via OAuth 2.0." : "Live mode — not connected yet."}
+            {mode === "off"
+              ? "Manual mode — everything works by hand while Brightspace access is pending."
+              : mode === "mock"
+                ? "Demo mode — realistic mock Brightspace data behind the same service interface as the live API."
+                : connected ? "Live mode — connected via OAuth 2.0." : "Live mode — not connected yet."}
           </p>
         </div>
-        <Button variant="primary" onClick={syncNow} disabled={syncing}>
+        <Button variant="primary" onClick={syncNow} disabled={syncing || mode === "off"} title={mode === "off" ? "Brightspace isn't configured on this deployment" : undefined}>
           {syncing ? <Spinner className="border-white/40 border-t-white" /> : <RefreshCw size={15} />}
           {syncing ? "Syncing…" : "Sync Now"}
         </Button>
@@ -76,10 +80,39 @@ export function SyncClient({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="lg:col-span-2 space-y-4">
+          {mode === "off" && (
+            <Card className="p-4 border-amber-500/30 bg-amber-500/5">
+              <h3 className="text-sm font-semibold mb-1">You&apos;re running in manual mode</h3>
+              <p className="text-[13px] text-muted leading-relaxed">
+                No Brightspace account is connected, so nothing syncs automatically. Everything in
+                CampusHub still works — add your courses, assignments, exams, grades and contacts by
+                hand, and they behave exactly like synced records.
+              </p>
+              <p className="text-[13px] text-muted leading-relaxed mt-2">
+                Once your university issues OAuth credentials, set{" "}
+                <code className="font-mono text-xs">BRIGHTSPACE_MODE=live</code> plus the{" "}
+                <code className="font-mono text-xs">BRIGHTSPACE_*</code> variables and connect your
+                account here. Your manual entries are kept — sync matches on Brightspace IDs and
+                never overwrites a field you edited.
+              </p>
+              {missingConfig.length > 0 && (
+                <p className="text-xs text-faint mt-2">
+                  Still needed: <span className="font-mono">{missingConfig.join(", ")}</span>
+                </p>
+              )}
+              <Link href="/courses" className="inline-block mt-3">
+                <Button size="sm" variant="primary">Add your courses</Button>
+              </Link>
+            </Card>
+          )}
           <Card>
             <CardHeader title="Sync history" />
             {logs.length === 0 ? (
-              <EmptyState title="Never synced" actions={<Button size="sm" variant="outline" onClick={syncNow}>Run first sync</Button>} />
+              <EmptyState
+                title="Nothing synced yet"
+                hint={mode === "off" ? "Sync history appears here once Brightspace is connected." : undefined}
+                actions={mode === "off" ? undefined : <Button size="sm" variant="outline" onClick={syncNow}>Run first sync</Button>}
+              />
             ) : (
               <div className="divide-y divide-border-base">
                 {logs.map((log) => (
@@ -96,13 +129,15 @@ export function SyncClient({
             <div className="space-y-2 text-[13px]">
               <div className="flex justify-between">
                 <span className="text-muted">Mode</span>
-                <Badge tone={mode === "mock" ? "amber" : "green"}>{mode === "mock" ? "Demo (mock)" : "Live"}</Badge>
+                <Badge tone={mode === "off" ? "neutral" : mode === "mock" ? "amber" : "green"}>
+                  {mode === "off" ? "Manual" : mode === "mock" ? "Demo (mock)" : "Live"}
+                </Badge>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Connection</span>
                 <span className="flex items-center gap-1.5">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-500" : "bg-rose-500")} />
-                  {connected ? "Ready" : "Not connected"}
+                  <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-500" : mode === "off" ? "bg-zinc-400" : "bg-rose-500")} />
+                  {connected ? "Ready" : mode === "off" ? "Not configured" : "Not connected"}
                 </span>
               </div>
               <div className="flex justify-between">

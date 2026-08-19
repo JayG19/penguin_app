@@ -38,6 +38,7 @@ export interface BrightspaceService {
 
 import { MockBrightspaceService } from "./MockBrightspaceService";
 import { D2LBrightspaceService, type TokenSet } from "./D2LBrightspaceService";
+import { brightspaceMode } from "./config";
 
 /**
  * @param generation Number of syncs already completed (mock uses this to
@@ -45,7 +46,7 @@ import { D2LBrightspaceService, type TokenSet } from "./D2LBrightspaceService";
  * @param userId Owner of the OAuth tokens used in live mode.
  */
 export function getBrightspaceService(generation = 0, userId?: string): BrightspaceService {
-  if (process.env.BRIGHTSPACE_MODE === "live") {
+  if (brightspaceMode() === "live") {
     const config = {
       baseUrl: process.env.BRIGHTSPACE_BASE_URL ?? "",
       clientId: process.env.BRIGHTSPACE_CLIENT_ID ?? "",

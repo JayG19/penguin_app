@@ -4,14 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
-    "setup": "pnpm install && prisma migrate dev && pnpm db:seed"
+    "setup": "pnpm install && prisma migrate dev && pnpm db:seed",
+    "postinstall": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "create-user": "tsx --env-file=.env scripts/create-user.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

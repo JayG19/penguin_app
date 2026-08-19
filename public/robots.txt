@@ -1,0 +1,3 @@
+# Private student dashboard — not for indexing.
+User-agent: *
+Disallow: /

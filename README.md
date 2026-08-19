@@ -5,36 +5,42 @@ grades, calendar, announcements, notes, submission tracking, contacts, focus tim
 analytics — all in one place, kept in sync with D2L Brightspace and fully editable by hand where
 Brightspace can't provide the data.
 
-**Demo login:** `demo@student.app` / `demo1234`
+Works fully **without** a Brightspace connection — every record can be created and
+maintained by hand — and switches to automatic sync when API credentials arrive.
 
 ---
 
-## Quick start
+## Quick start (local)
+
+Needs Node 20+ and a PostgreSQL database (a local one, or a free Neon branch).
 
 ```bash
-cp .env.example .env          # fill SESSION_SECRET (openssl rand -hex 32); keep DATABASE_URL as-is
-pnpm install
-npx prisma migrate dev        # creates prisma/dev.db and applies migrations
-pnpm db:seed                  # demo user + initial Brightspace (mock) sync + manual demo data
-pnpm dev                      # http://localhost:3000
+cp .env.example .env          # set DATABASE_URL, SESSION_SECRET, INVITE_CODE; BRIGHTSPACE_MODE=mock
+npm install
+npx prisma migrate dev        # creates the schema
+npm run db:seed               # demo student + mock Brightspace import (dev only)
+npm run dev                   # http://localhost:3000
 ```
 
-Or all at once after filling `.env`: `pnpm setup`.
+Demo login after seeding: `demo@student.app` / `demo1234`.
 
-> No lockfile is committed; `pnpm install` resolves from the ranges in `package.json`
-> (pinned `next`/`react`, Prisma 6, `packageManager: pnpm@10`).
+To deploy your own private instance, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+(Vercel + Neon, invite-only sign-up, manual mode).
+
+> No lockfile is committed; `npm install` resolves from the ranges in `package.json`.
 
 ### Commands
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Development server |
-| `pnpm build` / `pnpm start` | Production build / serve |
-| `pnpm lint` | ESLint |
-| `pnpm db:migrate` | Create/apply migrations |
-| `pnpm db:seed` | (Re-)seed demo data — safe to re-run, wipes and recreates the demo user |
-| `pnpm db:reset` | Drop + re-migrate + reseed |
-| `pnpm db:studio` | Prisma Studio DB browser |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build (runs pending migrations first) / serve |
+| `npm run lint` | ESLint |
+| `npm run db:migrate` | Create/apply migrations in development |
+| `npm run db:deploy` | Apply migrations to a deployed database |
+| `npm run db:seed` | (Re-)seed demo data — dev only, refuses to run in production |
+| `npm run create-user` | Create a real account from the CLI |
+| `npm run db:studio` | Prisma Studio DB browser |
 
 ---
 
@@ -54,7 +60,7 @@ Next.js Route Handlers  (src/app/api/**)      ← zod validation, per-user autho
   │       ├── MockBrightspaceService   — demo tenant, evolves between syncs
   │       └── D2LBrightspaceService    — real Valence API over OAuth 2.0
   ▼
-Prisma ORM → SQLite (swap the datasource for Postgres/MySQL in production)
+Prisma ORM → PostgreSQL
 ```
 
 Layers are kept separate: route handlers only validate/authorize and call into `src/lib`; the
@@ -65,7 +71,7 @@ whether data came from the mock or the live API.
 
 - **Next.js 16** (App Router, server components + route handlers), **React 19**, **TypeScript**
 - **Tailwind CSS v4** design system (light/dark/system theme), lucide-react icons
-- **Prisma + SQLite** with migrations (`prisma/migrations`)
+- **Prisma + PostgreSQL** with migrations (`prisma/migrations`)
 - **zod** input validation, **jose** JWT session cookies, node `scrypt` password hashing,
   AES-256-GCM encryption for stored OAuth tokens
 - No heavyweight UI/calendar/markdown libraries — the drawers, command palette, calendar and
@@ -144,10 +150,27 @@ Setup for a real tenant is documented in [`docs/BRIGHTSPACE.md`](docs/BRIGHTSPAC
 
 ## Authentication approach
 
-Email + password (scrypt-hashed) → signed JWT (`jose`, HS256) in an httpOnly `SameSite=Lax`
-cookie. `src/middleware.ts` verifies the token on every request and redirects/401s
-unauthenticated traffic; every API handler additionally scopes queries to the session user.
-Brightspace credentials never reach the frontend; OAuth tokens are encrypted at rest.
+Email + password (scrypt-hashed, per-user salt) → signed JWT (`jose`, HS256) in an httpOnly
+`SameSite=Lax` cookie. `src/middleware.ts` verifies the token on every request and
+redirects/401s unauthenticated traffic; every API handler additionally scopes queries to the
+session user, so accounts are fully isolated from each other.
+
+**Sign-up is closed unless `INVITE_CODE` is set** — a fresh deployment can't be registered to
+by whoever finds the URL. The first account on a new instance is created with
+`npm run create-user`. Brightspace credentials never reach the frontend; OAuth tokens are
+AES-256-GCM encrypted at rest.
+
+## Modes
+
+`BRIGHTSPACE_MODE` decides where course data comes from:
+
+| Mode | Behaviour |
+| --- | --- |
+| `off` (default) | **Manual mode.** No sync; everything is entered by hand. The Brightspace page explains what's missing and Sync is disabled. |
+| `mock` | Demo tenant for local development. Never use in production — it would import fake courses into a real account. |
+| `live` | Real Brightspace over OAuth 2.0. See [docs/BRIGHTSPACE.md](docs/BRIGHTSPACE.md). |
+
+Switching `off` → `live` needs no code changes and preserves anything you entered manually.
 
 ## Sync strategy
 
@@ -214,7 +237,7 @@ penguin_app.py, penguin.csv, requirements.txt, setup.sh, Procfile.txt
 
 ## Production notes
 
-- Swap SQLite for Postgres: change `datasource db` in `prisma/schema.prisma` and `DATABASE_URL`,
-  then `prisma migrate dev`.
-- Set a strong `SESSION_SECRET`; never commit `.env` (already gitignored).
-- `pnpm build && pnpm start` serves the production build.
+- Full deployment guide: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+- Set a strong `SESSION_SECRET` (`openssl rand -hex 32`); never commit `.env` (gitignored).
+- `npm run build` applies pending migrations, then builds.
+- `public/robots.txt` disallows crawlers so a private instance stays out of search results.

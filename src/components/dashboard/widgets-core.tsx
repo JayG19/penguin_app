@@ -284,6 +284,23 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
           View all <ArrowRight size={12} />
         </Link>
       </div>
+      {courses.length === 0 && (
+        <Card>
+          <EmptyState
+            title="No courses yet"
+            hint="Add your courses to unlock deadlines, grades and the priority list. It takes about a minute per course."
+            actions={
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => window.dispatchEvent(new CustomEvent("quickadd", { detail: { type: "course" } }))}
+              >
+                Add your first course
+              </Button>
+            }
+          />
+        </Card>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {courses.map((c) => {
           const cc = courseColor(c.color);

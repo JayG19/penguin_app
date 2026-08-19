@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DEFAULT_NUDGE_PREFS, parseNudgePrefs } from "@/lib/nudges/prefs";
+import { brightspaceMode } from "@/lib/brightspace/config";
 import { SettingsClient } from "./SettingsClient";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function SettingsPage() {
       syncMode={pref?.syncMode ?? "manual"}
       notificationPrefs={pref?.notificationPrefs ?? null}
       nudgePrefs={parseNudgePrefs(pref?.nudgePrefs)}
-      brightspaceMode={process.env.BRIGHTSPACE_MODE === "live" ? "live" : "mock"}
+      brightspaceMode={brightspaceMode()}
     />
   );
 }

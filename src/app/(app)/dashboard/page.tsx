@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DashboardClient, type DashboardData } from "@/components/dashboard/DashboardClient";
+import { brightspaceEnabled } from "@/lib/brightspace/config";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,7 @@ export default async function DashboardPage() {
     lastSync: serialize(lastSync),
     tools: serialize(pinnedTools),
     unreadByCourse: Object.fromEntries(unreadByCourse.map((u) => [u.courseId, u._count])),
+    brightspaceEnabled: brightspaceEnabled(),
   };
 
   return <DashboardClient data={data} />;

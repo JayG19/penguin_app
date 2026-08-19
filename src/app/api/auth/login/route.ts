@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createSession, verifyPassword } from "@/lib/auth";
 import { runSync } from "@/lib/sync/engine";
+import { brightspaceEnabled } from "@/lib/brightspace/config";
 
 const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   await createSession(user.id);
 
   // Sync-on-launch preference: fire and forget so login stays fast.
-  if (user.preference?.syncMode === "launch") {
+  if (user.preference?.syncMode === "launch" && brightspaceEnabled()) {
     runSync(user.id).catch((e) => console.error("Launch sync failed", e));
   }
   return NextResponse.json({ ok: true });

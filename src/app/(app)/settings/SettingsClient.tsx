@@ -79,7 +79,7 @@ export function SettingsClient({
   syncMode: string;
   notificationPrefs: string | null;
   nudgePrefs: NudgePrefs;
-  brightspaceMode: "mock" | "live";
+  brightspaceMode: "off" | "mock" | "live";
 }) {
   const [appearance, setAppearance] = useState(initialAppearance);
   const [nudges, setNudges] = useState(initialNudges);
@@ -403,9 +403,18 @@ export function SettingsClient({
 
       <Section icon={<RefreshCw size={15} />} title="Brightspace sync">
         <div className="divide-y divide-border-base">
-          <Row label="Integration mode" hint={brightspaceMode === "mock" ? "Demo data — no real account connected" : "Connected to a live tenant"}>
-            <Badge tone={brightspaceMode === "mock" ? "amber" : "green"}>
-              {brightspaceMode === "mock" ? "Demo" : "Live"}
+          <Row
+            label="Integration mode"
+            hint={
+              brightspaceMode === "off"
+                ? "Manual mode — add everything by hand"
+                : brightspaceMode === "mock"
+                  ? "Demo data — no real account connected"
+                  : "Connected to a live tenant"
+            }
+          >
+            <Badge tone={brightspaceMode === "off" ? "neutral" : brightspaceMode === "mock" ? "amber" : "green"}>
+              {brightspaceMode === "off" ? "Manual" : brightspaceMode === "mock" ? "Demo" : "Live"}
             </Badge>
           </Row>
           <Row label="When to sync">

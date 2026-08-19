@@ -1,5 +1,6 @@
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
+import { BUILTIN_TOOLS } from "../src/lib/provision";
 import { runSync } from "../src/lib/sync/engine";
 
 function at(daysFromNow: number, hour = 9, minute = 0): Date {
@@ -9,26 +10,16 @@ function at(daysFromNow: number, hour = 9, minute = 0): Date {
   return d;
 }
 
-const BUILTIN_TOOLS = [
-  { name: "Google Docs", url: "https://docs.google.com", icon: "file-text", color: "sky" },
-  { name: "Google Sheets", url: "https://sheets.google.com", icon: "table", color: "emerald" },
-  { name: "Google Slides", url: "https://slides.google.com", icon: "presentation", color: "amber" },
-  { name: "Google Drive", url: "https://drive.google.com", icon: "hard-drive", color: "sky" },
-  { name: "Gmail", url: "https://mail.google.com", icon: "mail", color: "rose" },
-  { name: "Google Calendar", url: "https://calendar.google.com", icon: "calendar", color: "sky" },
-  { name: "Figma", url: "https://figma.com", icon: "pen-tool", color: "violet" },
-  { name: "Canva", url: "https://canva.com", icon: "palette", color: "violet" },
-  { name: "Notion", url: "https://notion.so", icon: "notebook", color: "neutral" },
-  { name: "Word", url: "https://office.com/launch/word", icon: "file-text", color: "sky" },
-  { name: "Excel", url: "https://office.com/launch/excel", icon: "table", color: "emerald" },
-  { name: "PowerPoint", url: "https://office.com/launch/powerpoint", icon: "presentation", color: "rose" },
-  { name: "ChatGPT", url: "https://chatgpt.com", icon: "bot", color: "emerald" },
-  { name: "Calculator", url: "https://www.desmos.com/scientific", icon: "calculator", color: "neutral" },
-  { name: "Citation Generator", url: "https://zbib.org", icon: "quote", color: "amber" },
-  { name: "Unit Converter", url: "https://www.unitconverters.net", icon: "ruler", color: "neutral" },
-];
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+    console.error(
+      "Refusing to seed demo data in production. This would create a demo account with a\n" +
+      "published password. Use `npm run create-user` instead, or set ALLOW_DEMO_SEED=true if\n" +
+      "you really want demo data here.",
+    );
+    process.exit(1);
+  }
   console.log("Seeding CampusHub demo data…");
 
   const existing = await db.user.findUnique({ where: { email: "demo@student.app" } });

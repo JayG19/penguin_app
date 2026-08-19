@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getBrightspaceService } from "@/lib/brightspace/BrightspaceService";
+import { brightspaceEnabled } from "@/lib/brightspace/config";
 
 export interface SyncDetail {
   action: "added" | "updated" | "removed" | "conflict";
@@ -63,6 +64,11 @@ function d(iso: string | undefined | null): Date | null {
 }
 
 export async function runSync(userId: string): Promise<SyncResult> {
+  // Manual mode: no source is configured, so there is nothing to sync and
+  // nothing should be written.
+  if (!brightspaceEnabled()) {
+    return { logId: "", status: "error", added: 0, updated: 0, removed: 0, errors: 1, details: [] };
+  }
   const generation = await db.syncLog.count({ where: { userId, status: "success" } });
   const service = getBrightspaceService(generation, userId);
   const log = await db.syncLog.create({ data: { userId, status: "running" } });

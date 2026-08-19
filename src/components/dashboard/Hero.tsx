@@ -265,6 +265,9 @@ function SyncLine({ ctx }: { ctx: WidgetCtx }) {
   const [syncing, setSyncing] = useState(false);
   const log = ctx.data.lastSync;
 
+  // Manual mode: no source to sync from, so the row would only be noise.
+  if (!ctx.data.brightspaceEnabled) return null;
+
   async function syncNow() {
     setSyncing(true);
     try {
