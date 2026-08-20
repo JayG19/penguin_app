@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
-import { Button, FilterMenu, Menu, toast } from "@/components/ui";
+import { Button, Card, FilterMenu, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type {
   AnnouncementDTO, AssignmentDTO, CourseDTO, EventDTO, GradeItemDTO, NoteDTO,
@@ -71,11 +71,29 @@ interface WidgetDef {
   render: (ctx: WidgetCtx) => React.ReactNode;
 }
 
+/** Two widgets sharing one bordered surface with a hairline divider between
+ * them, instead of two separate cards with a gap — reads as one continuous
+ * panel rather than a grid of boxes. */
+function TwoColPanel({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
+  return (
+    <Card className="dashboard-panel overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] divide-y divide-border-base lg:divide-y-0 lg:divide-x">
+        <div className="min-w-0">{left}</div>
+        <div className="min-w-0">{right}</div>
+      </div>
+    </Card>
+  );
+}
+
 const WIDGETS: WidgetDef[] = [
-  { id: "priority", title: "What to work on", span: 2, render: (ctx) => <PriorityWidget ctx={ctx} /> },
-  { id: "deadlines", title: "Upcoming deadlines", span: 1, render: (ctx) => <DeadlinesWidget ctx={ctx} /> },
-  { id: "calendar", title: "Calendar", span: 1, render: (ctx) => <CalendarWidget ctx={ctx} /> },
-  { id: "announcements", title: "Announcements", span: 1, render: (ctx) => <AnnouncementsWidget ctx={ctx} /> },
+  {
+    id: "priority-deadlines", title: "What to work on", span: 3,
+    render: (ctx) => <TwoColPanel left={<PriorityWidget ctx={ctx} bare />} right={<DeadlinesWidget ctx={ctx} bare />} />,
+  },
+  {
+    id: "calendar-announcements", title: "Calendar & announcements", span: 3,
+    render: (ctx) => <TwoColPanel left={<CalendarWidget ctx={ctx} bare />} right={<AnnouncementsWidget ctx={ctx} bare />} />,
+  },
   { id: "courses", title: "Courses", span: 3, render: (ctx) => <CoursesWidget ctx={ctx} /> },
   { id: "grades", title: "Grade planner", span: 1, optional: true, render: (ctx) => <GradeWidget ctx={ctx} /> },
   { id: "workload", title: "Workload", span: 1, optional: true, render: (ctx) => <WorkloadWidget ctx={ctx} /> },

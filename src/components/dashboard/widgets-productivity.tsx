@@ -16,7 +16,7 @@ import type { WidgetCtx } from "./DashboardClient";
 
 /* ================= Calendar (compact) ================= */
 
-export function CalendarWidget({ ctx }: { ctx: WidgetCtx }) {
+export function CalendarWidget({ ctx, bare }: { ctx: WidgetCtx; bare?: boolean }) {
   const { data, courseFilter } = ctx;
   const [view, setView] = useState<"month" | "agenda">("month");
   const [cursor, setCursor] = useState(new Date());
@@ -55,8 +55,8 @@ export function CalendarWidget({ ctx }: { ctx: WidgetCtx }) {
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 8);
 
-  return (
-    <Card>
+  const body = (
+    <>
       <CardHeader
         title="Calendar"
         action={
@@ -131,8 +131,9 @@ export function CalendarWidget({ ctx }: { ctx: WidgetCtx }) {
           ))}
         </div>
       )}
-    </Card>
+    </>
   );
+  return bare ? body : <Card>{body}</Card>;
 }
 
 /* ================= Grade planner ================= */

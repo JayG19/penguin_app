@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ACCENTS, APPEARANCE_STORAGE_KEY, accentVarsFromHex, applyAppearance, type AppearanceState } from "@/lib/appearance";
+import { APPEARANCE_STORAGE_KEY, applyAppearance, resolveThemeVars, type AppearanceState } from "@/lib/appearance";
 
 /**
  * Mirrors the server-side appearance preference into the DOM and localStorage,
@@ -11,13 +11,7 @@ import { ACCENTS, APPEARANCE_STORAGE_KEY, accentVarsFromHex, applyAppearance, ty
 export function AppearanceProvider({ appearance }: { appearance: AppearanceState }) {
   useEffect(() => {
     applyAppearance(appearance);
-    const vars =
-      appearance.accent === "custom"
-        ? accentVarsFromHex(appearance.customAccent ?? "#4f46e5")
-        : (() => {
-            const def = ACCENTS.find((a) => a.key === appearance.accent) ?? ACCENTS[0];
-            return { light: def.light, lightSoft: def.lightSoft, dark: def.dark, darkSoft: def.darkSoft };
-          })();
+    const vars = resolveThemeVars(appearance.accent, appearance.customAccent);
     try {
       localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ ...appearance, vars }));
       localStorage.setItem("campushub-theme", appearance.theme);

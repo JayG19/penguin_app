@@ -18,6 +18,17 @@
   --accent: var(--accent-light);
   --accent-soft: var(--accent-light-soft);
   --ring: color-mix(in srgb, var(--accent) 40%, transparent);
+
+  /* Gradient/nav-bar identity, derived from the accent (see resolveThemeVars
+     in src/lib/appearance.ts) — defaults here match the indigo preset so
+     there's no flash of unstyled color before that script runs. */
+  --accent-2: #f59e0b;
+  --accent-3: #10b981;
+  --sidebar-bg: #110f33;
+  --sidebar-bg-2: #19164b;
+  --sidebar-fg: #e4e2f7;
+  --sidebar-fg-dim: #a29cd6;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.1);
 }
 
 .dark {
@@ -317,3 +328,52 @@ body {
 .prio-review { background: var(--prio-review-bg); color: var(--prio-review-fg); }
 .prio-done { background: rgba(16, 185, 129, 0.12); color: #059669; }
 .dark .prio-done { color: #34d399; }
+
+/* ---------- Nav bar: its own colour identity, independent of light/dark
+   theme — a deliberately dark, accent-tinted "chrome", distinct from the
+   workspace surface behind it. ---------- */
+.app-sidebar {
+  background:
+    radial-gradient(34rem 20rem at 100% 0%, color-mix(in srgb, var(--accent-light) 40%, transparent), transparent 60%),
+    radial-gradient(26rem 22rem at 0% 100%, color-mix(in srgb, var(--accent-3) 26%, transparent), transparent 65%),
+    linear-gradient(175deg, var(--sidebar-bg), var(--sidebar-bg-2));
+  color: var(--sidebar-fg);
+}
+.app-sidebar-link {
+  color: var(--sidebar-fg-dim);
+}
+.app-sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sidebar-fg);
+}
+.app-sidebar-link[aria-current="page"] {
+  background: var(--sidebar-active-bg);
+  color: #fff;
+}
+
+/* ---------- Dashboard panels: a top gradient edge instead of a plain
+   border, so the grouped widgets read as a designed surface rather than a
+   plain box. ---------- */
+.dashboard-panel {
+  position: relative;
+}
+.dashboard-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2) 45%, var(--accent-3) 75%, var(--accent));
+  opacity: 0.85;
+}
+
+/* ---------- Hero band: a bold accent gradient (not theme-switched — always
+   the vivid light-mode hues, like the sidebar) so the "what's happening
+   today" band reads as the hub's colour identity in both themes. ---------- */
+.hero-band {
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, color-mix(in srgb, var(--accent-3) 55%, transparent), transparent 60%),
+    radial-gradient(40rem 24rem at -10% 110%, color-mix(in srgb, var(--accent-2) 45%, transparent), transparent 60%),
+    linear-gradient(120deg, var(--accent-light), color-mix(in srgb, var(--accent-light) 55%, var(--accent-2)) 55%, var(--accent-3));
+}

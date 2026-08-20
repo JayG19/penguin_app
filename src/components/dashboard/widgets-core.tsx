@@ -17,7 +17,7 @@ import type { SyncDetail } from "@/lib/sync/engine";
 
 /* ================= Priority ================= */
 
-export function PriorityWidget({ ctx }: { ctx: WidgetCtx }) {
+export function PriorityWidget({ ctx, bare }: { ctx: WidgetCtx; bare?: boolean }) {
   const { data, courseFilter } = ctx;
   const router = useRouter();
   const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
@@ -125,8 +125,8 @@ export function PriorityWidget({ ctx }: { ctx: WidgetCtx }) {
     router.refresh();
   }
 
-  return (
-    <Card>
+  const body = (
+    <>
       <CardHeader title="What should I work on?" action={<Sparkles size={14} className="text-faint" />} />
       {items.length === 0 ? (
         <EmptyState
@@ -172,37 +172,41 @@ export function PriorityWidget({ ctx }: { ctx: WidgetCtx }) {
           ))}
         </div>
       )}
-    </Card>
+    </>
   );
+  return bare ? body : <Card>{body}</Card>;
 }
 
 /* ================= Deadlines ================= */
 
 type DeadlineFilter = "all" | "assignments" | "quizzes" | "exams" | "projects";
 
-export function DeadlinesWidget({ ctx }: { ctx: WidgetCtx }) {
+export function DeadlinesWidget({ ctx, bare }: { ctx: WidgetCtx; bare?: boolean }) {
   const { data, courseFilter } = ctx;
   const [filter, setFilter] = useState<DeadlineFilter>("all");
 
   const items = useMemo(() => {
     const now = new Date();
-    type D = { key: string; date: Date; title: string; courseCode: string | null; color: string; weight: number | null; kind: string; open?: () => void };
+    type D = { key: string; date: Date; title: string; courseCode: string | null; color: string; weight: number | null; kind: string; priority: string; open?: () => void };
     const list: D[] = [];
     for (const a of data.assignments) {
       if (!a.dueAt || ["completed", "submitted"].includes(a.status) || new Date(a.dueAt) < now) continue;
       if (courseFilter && a.courseId !== courseFilter) continue;
-      list.push({ key: `a${a.id}`, date: new Date(a.dueAt), title: a.title, courseCode: a.course.code, color: a.course.color, weight: a.weight, kind: "assignment", open: () => ctx.openAssignment(a) });
+      const priority = computePriority({ dueAt: a.dueAt, weight: a.weight, priorityOverride: a.priorityOverride }, now);
+      list.push({ key: `a${a.id}`, date: new Date(a.dueAt), title: a.title, courseCode: a.course.code, color: a.course.color, weight: a.weight, kind: "assignment", priority, open: () => ctx.openAssignment(a) });
     }
     for (const q of data.quizzes) {
       if (!q.startAt || q.status !== "upcoming" || new Date(q.startAt) < now) continue;
       if (courseFilter && q.courseId !== courseFilter) continue;
-      list.push({ key: `q${q.id}`, date: new Date(q.startAt), title: q.title, courseCode: q.course.code, color: q.course.color, weight: q.weight, kind: q.kind, open: () => ctx.openQuiz(q) });
+      const priority = computePriority({ dueAt: q.startAt, weight: q.weight, priorityOverride: q.priorityOverride }, now);
+      list.push({ key: `q${q.id}`, date: new Date(q.startAt), title: q.title, courseCode: q.course.code, color: q.course.color, weight: q.weight, kind: q.kind, priority, open: () => ctx.openQuiz(q) });
     }
     for (const t of data.tasks) {
       if (!t.dueAt || t.completed || new Date(t.dueAt) < now) continue;
       if (courseFilter && t.courseId !== courseFilter) continue;
       if (!["project", "presentation"].includes(t.kind)) continue;
-      list.push({ key: `t${t.id}`, date: new Date(t.dueAt), title: t.title, courseCode: t.course?.code ?? null, color: t.course?.color ?? "indigo", weight: t.weight, kind: t.kind });
+      const priority = computePriority({ dueAt: t.dueAt, weight: t.weight, priorityOverride: t.priorityOverride }, now);
+      list.push({ key: `t${t.id}`, date: new Date(t.dueAt), title: t.title, courseCode: t.course?.code ?? null, color: t.course?.color ?? "indigo", weight: t.weight, kind: t.kind, priority });
     }
     return list
       .filter((d) => {
@@ -218,8 +222,8 @@ export function DeadlinesWidget({ ctx }: { ctx: WidgetCtx }) {
 
   const dayLabel = (d: Date) => (isToday(d) ? "Today" : isTomorrow(d) ? "Tomorrow" : format(d, "EEE MMM d"));
 
-  return (
-    <Card>
+  const body = (
+    <>
       <CardHeader title="Upcoming deadlines" />
       <div className="flex gap-1 px-4 pb-2 flex-wrap">
         {(["all", "assignments", "quizzes", "exams", "projects"] as const).map((f) => (
@@ -254,7 +258,10 @@ export function DeadlinesWidget({ ctx }: { ctx: WidgetCtx }) {
                 <button onClick={d.open} disabled={!d.open} className={cn("w-full text-left group", d.open && "cursor-pointer")}>
                   <div className="flex items-baseline justify-between gap-2">
                     <p className={cn("text-[13px] font-medium truncate", d.open && "group-hover:text-accent")}>{d.title}</p>
-                    {d.weight != null && d.weight > 0 && <span className="text-xs text-muted tabular-nums shrink-0">{d.weight}%</span>}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {d.weight != null && d.weight > 0 && <span className="text-xs text-muted tabular-nums">{d.weight}%</span>}
+                      <PriorityBadge priority={d.priority} />
+                    </span>
                   </div>
                   <p className="text-xs text-muted">
                     {d.courseCode ? `${d.courseCode} · ` : ""}{dayLabel(d.date)}, {format(d.date, "h:mm a")}
@@ -265,8 +272,9 @@ export function DeadlinesWidget({ ctx }: { ctx: WidgetCtx }) {
           </ol>
         </div>
       )}
-    </Card>
+    </>
   );
+  return bare ? body : <Card>{body}</Card>;
 }
 
 /* ================= Courses ================= */
@@ -276,32 +284,31 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
   const now = new Date();
   const courses = data.courses.filter((c) => !courseFilter || c.id === courseFilter);
 
+  if (courses.length === 0) {
+    return (
+      <Card className="dashboard-panel overflow-hidden">
+        <CardHeader title="Courses" />
+        <EmptyState
+          title="No courses yet"
+          hint="Add your courses to unlock deadlines, grades and the priority list. It takes about a minute per course."
+          actions={
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => window.dispatchEvent(new CustomEvent("quickadd", { detail: { type: "course" } }))}
+            >
+              Add your first course
+            </Button>
+          }
+        />
+      </Card>
+    );
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2 px-0.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">Courses</h3>
-        <Link href="/courses" className="text-xs text-accent hover:underline flex items-center gap-0.5">
-          View all <ArrowRight size={12} />
-        </Link>
-      </div>
-      {courses.length === 0 && (
-        <Card>
-          <EmptyState
-            title="No courses yet"
-            hint="Add your courses to unlock deadlines, grades and the priority list. It takes about a minute per course."
-            actions={
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => window.dispatchEvent(new CustomEvent("quickadd", { detail: { type: "course" } }))}
-              >
-                Add your first course
-              </Button>
-            }
-          />
-        </Card>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+    <Card className="dashboard-panel overflow-hidden">
+      <CardHeader title="Courses" action={<Link href="/courses" className="text-xs text-accent hover:underline flex items-center gap-0.5">View all <ArrowRight size={12} /></Link>} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y divide-border-base sm:divide-y-0 sm:divide-x border-t border-border-base">
         {courses.map((c) => {
           const cc = courseColor(c.color);
           const gradeItems = data.grades.filter((g) => g.courseId === c.id && g.score != null);
@@ -316,10 +323,11 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
           const overdue = data.assignments.filter((a) => a.courseId === c.id && a.dueAt && new Date(a.dueAt) < now && !["completed", "submitted"].includes(a.status)).length;
 
           return (
-            <Card key={c.id} className="p-3.5 hover:border-border-strong transition-colors">
+            <div key={c.id} className="p-3.5 hover:bg-surface-2/60 transition-colors relative">
+              <span className={cn("absolute inset-x-0 top-0 h-[3px]", cc.bar)} aria-hidden />
               <Link href={`/courses/${c.id}`} className="block group">
                 <div className="flex items-center justify-between gap-2">
-                  <span className={cn("text-[13px] font-semibold group-hover:text-accent", cc.text)}>{c.code}</span>
+                  <Badge tone="none" className={cn(cc.soft, cc.text, "font-mono")}>{c.code}</Badge>
                   <div className="flex items-center gap-1.5">
                     {overdue > 0 && <Badge tone="red">{overdue} overdue</Badge>}
                     {unread > 0 && (
@@ -354,17 +362,17 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
                   <p className="text-xs text-faint">No upcoming deadlines</p>
                 )}
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 
 /* ================= Announcements ================= */
 
-export function AnnouncementsWidget({ ctx }: { ctx: WidgetCtx }) {
+export function AnnouncementsWidget({ ctx, bare }: { ctx: WidgetCtx; bare?: boolean }) {
   const { data, courseFilter } = ctx;
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -375,8 +383,8 @@ export function AnnouncementsWidget({ ctx }: { ctx: WidgetCtx }) {
     router.refresh();
   }
 
-  return (
-    <Card>
+  const body = (
+    <>
       <CardHeader
         title="Announcements"
         action={<Link href="/announcements" className="text-xs text-accent hover:underline">View all</Link>}
@@ -397,8 +405,8 @@ export function AnnouncementsWidget({ ctx }: { ctx: WidgetCtx }) {
               >
                 <span className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", a.read ? "bg-border-strong" : "bg-accent")} aria-label={a.read ? "Read" : "Unread"} />
                 <span className="min-w-0 grow">
-                  <span className="flex items-baseline gap-2">
-                    <span className={cn("text-xs font-semibold", courseColor(a.course.color).text)}>{a.course.code}</span>
+                  <span className="flex items-center gap-2">
+                    <Badge tone="none" className={cn(courseColor(a.course.color).soft, courseColor(a.course.color).text)}>{a.course.code}</Badge>
                     <span className="text-[11px] text-faint">{timeAgo(a.postedAt)}</span>
                   </span>
                   <span className={cn("block text-[13px] truncate", a.read ? "text-muted" : "font-medium")}>{a.title}</span>
@@ -425,8 +433,9 @@ export function AnnouncementsWidget({ ctx }: { ctx: WidgetCtx }) {
           ))}
         </div>
       )}
-    </Card>
+    </>
   );
+  return bare ? body : <Card>{body}</Card>;
 }
 
 /* ================= Sync ================= */

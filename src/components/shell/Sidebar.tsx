@@ -48,15 +48,12 @@ export function Sidebar({ unreadAnnouncements }: { unreadAnnouncements: number }
         key={n.href}
         href={n.href}
         aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
-          active ? "bg-accent-soft text-accent" : "text-muted hover:text-foreground hover:bg-surface-2",
-        )}
+        className="app-sidebar-link flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors"
       >
         <n.icon size={16} strokeWidth={2} />
         <span className="grow">{n.label}</span>
         {n.href === "/announcements" && unreadAnnouncements > 0 && (
-          <span className="rounded-full bg-accent text-white dark:text-zinc-900 text-[10px] font-semibold px-1.5 py-px min-w-[18px] text-center">
+          <span className="rounded-full bg-white/90 text-[#1a1a2e] text-[10px] font-semibold px-1.5 py-px min-w-[18px] text-center">
             {unreadAnnouncements}
           </span>
         )}
@@ -65,17 +62,17 @@ export function Sidebar({ unreadAnnouncements }: { unreadAnnouncements: number }
   };
 
   return (
-    <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border-base bg-surface h-dvh sticky top-0">
-      <Link href="/dashboard" className="flex items-center gap-2 px-4 h-14 border-b border-border-base">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-white dark:text-zinc-900">
+    <aside className="app-sidebar hidden lg:flex w-56 shrink-0 flex-col h-dvh sticky top-0">
+      <Link href="/dashboard" className="flex items-center gap-2 px-4 h-14 border-b border-white/10">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-3)] to-[var(--accent-light)] text-white shadow-[0_4px_14px_-4px_var(--accent-light)]">
           <GraduationCap size={16} />
         </span>
-        <span className="font-semibold tracking-tight text-[15px]">CampusHub</span>
+        <span className="font-semibold tracking-tight text-[15px] text-white">CampusHub</span>
       </Link>
       <nav className="flex flex-col gap-0.5 p-2.5 grow overflow-y-auto" aria-label="Main navigation">
         {NAV.map(item)}
       </nav>
-      <div className="p-2.5 border-t border-border-base flex flex-col gap-0.5">{FOOTER_NAV.map(item)}</div>
+      <div className="p-2.5 border-t border-white/10 flex flex-col gap-0.5">{FOOTER_NAV.map(item)}</div>
     </aside>
   );
 }

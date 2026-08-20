@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlarmClock, Bell, Check, Clock3, Monitor, Moon, Palette, RefreshCw, Sun, User } from "lucide-react";
 import { Badge, Button, Card, Input, Label, Select, Switch, toast } from "@/components/ui";
-import { ACCENTS, BACKGROUNDS, PRIORITY_SCHEMES, accentVarsFromHex, applyAppearance, type AppearanceState } from "@/lib/appearance";
+import { ACCENTS, BACKGROUNDS, PRIORITY_SCHEMES, applyAppearance, resolveThemeVars, type AppearanceState } from "@/lib/appearance";
 import { COMMON_TIMEZONES, detectTimezone, timezoneLabel } from "@/lib/timezone";
 import type { NudgePrefs } from "@/lib/nudges/prefs";
 import { cn } from "@/lib/utils";
@@ -117,10 +117,7 @@ export function SettingsClient({
     setAppearance(next);
     applyAppearance(patch);
     try {
-      const vars = next.accent === "custom" ? accentVarsFromHex(next.customAccent ?? customHex) : (() => {
-        const def = ACCENTS.find((a) => a.key === next.accent) ?? ACCENTS[0];
-        return { light: def.light, lightSoft: def.lightSoft, dark: def.dark, darkSoft: def.darkSoft };
-      })();
+      const vars = resolveThemeVars(next.accent, next.accent === "custom" ? (next.customAccent ?? customHex) : next.customAccent);
       localStorage.setItem("campushub-appearance", JSON.stringify({ ...next, vars }));
       if (patch.theme) localStorage.setItem("campushub-theme", patch.theme);
     } catch {}
