@@ -2,14 +2,13 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter,
-  useSensor, useSensors, type DragEndEvent, type DragStartEvent,
+  DndContext, KeyboardSensor, PointerSensor, closestCenter,
+  useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
 import { Button, FilterMenu, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -109,8 +108,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       return defaultLayout();
     }
   });
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeSize, setActiveSize] = useState<{ width: number; height: number } | null>(null);
   const [courseFilter, setCourseFilter] = useState("");
   const [openA, setOpenA] = useState<AssignmentDTO | null>(null);
   const [openQ, setOpenQ] = useState<QuizDTO | null>(null);
@@ -134,15 +131,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  function handleDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
-    const rect = e.active.rect.current.initial;
-    setActiveSize(rect ? { width: rect.width, height: rect.height } : null);
-  }
-
   function handleDragEnd(e: DragEndEvent) {
-    setActiveId(null);
-    setActiveSize(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const visibleIds = layout.filter((entry) => !entry.hidden).map((entry) => entry.id);
@@ -231,7 +220,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visible.map((e) => e.id)} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 grid-flow-row-dense gap-4 items-start">
             {visible.map((entry) => {
@@ -241,17 +230,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             })}
           </div>
         </SortableContext>
-        {/* Just an outline of where the widget would land — not a content
-            preview, which was fiddly to size/position correctly and read as
-            buggy. Sized to the dragged widget's own footprint. */}
-        <DragOverlay modifiers={[restrictToWindowEdges]}>
-          {activeId ? (
-            <div
-              className="rounded-xl border-2 border-dashed border-accent max-w-[90vw]"
-              style={activeSize ? { width: activeSize.width, height: activeSize.height } : undefined}
-            />
-          ) : null}
-        </DragOverlay>
       </DndContext>
 
       {visible.length === 0 && (
@@ -279,14 +257,17 @@ function SortableWidget({ def, ctx, onHide }: { def: WidgetDef; ctx: WidgetCtx; 
         def.span === 3 && "md:col-span-2 xl:col-span-3",
         def.span === 2 && "md:col-span-2 xl:col-span-2",
         "group/widget relative min-w-0",
-        isDragging && "opacity-40 z-10",
+        isDragging && "z-10",
       )}
     >
       <div
         {...attributes}
         {...listeners}
         title={`Drag to reorder ${def.title}`}
-        className="absolute -top-1.5 right-2 z-10 cursor-grab touch-none active:cursor-grabbing rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+        className={cn(
+          "absolute -top-1.5 right-2 z-10 cursor-grab touch-none active:cursor-grabbing rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground",
+          isDragging && "opacity-0 pointer-events-none",
+        )}
       >
         <GripVertical size={12} />
       </div>
@@ -294,11 +275,22 @@ function SortableWidget({ def, ctx, onHide }: { def: WidgetDef; ctx: WidgetCtx; 
         onClick={onHide}
         title={`Hide ${def.title}`}
         aria-label={`Hide ${def.title}`}
-        className="absolute -top-1.5 right-9 z-10 rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+        className={cn(
+          "absolute -top-1.5 right-9 z-10 rounded-md border border-border-base bg-surface p-1 text-faint opacity-0 shadow-sm transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 hover:text-foreground",
+          isDragging && "opacity-0 pointer-events-none",
+        )}
       >
         <EyeOff size={12} />
       </button>
       {def.render(ctx)}
+      {/* An outline over the widget's own footprint — where it would land —
+          rather than a floating content clone, which was fiddly to size and
+          position correctly (it could run off-screen or render at the wrong
+          size) and looked buggy. Sits on top of the real content instead of
+          replacing it, so the box is always exactly the right size. */}
+      {isDragging && (
+        <div className="absolute inset-0 z-20 rounded-xl border-2 border-dashed border-accent bg-surface/95 pointer-events-none" />
+      )}
     </section>
   );
 }
