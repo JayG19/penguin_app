@@ -7,7 +7,7 @@ import {
   isSameDay, isSameMonth, isToday, setHours, setMinutes, startOfMonth, startOfWeek, subMonths, subWeeks,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, ExternalLink, Plus, Repeat, StickyNote, Timer } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Modal, Segmented, SourceBadge, toast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, FilterMenu, Modal, Segmented, SourceBadge, toast } from "@/components/ui";
 import { AssignmentDrawer } from "@/components/AssignmentDrawer";
 import { QuizDrawer } from "@/components/QuizDrawer";
 import type { AssignmentDTO, CourseDTO, EventDTO, QuizDTO, TaskDTO } from "@/components/types";
@@ -221,15 +221,18 @@ export function CalendarClient({
           <p className="text-[13px] text-muted">Deadlines, classes and personal events in one place.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="h-8 rounded-lg border border-border-base bg-surface px-2 text-[13px]"
-            aria-label="Filter by course"
-          >
-            <option value="">All courses</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-          </select>
+          <FilterMenu
+            groups={[
+              {
+                id: "course",
+                label: "Course",
+                value: courseFilter,
+                allValue: "",
+                onChange: setCourseFilter,
+                options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+              },
+            ]}
+          />
           <Segmented
             options={[{ value: "month", label: "Month" }, { value: "week", label: "Week" }, { value: "day", label: "Day" }, { value: "agenda", label: "Agenda" }]}
             value={view}

@@ -139,10 +139,10 @@ export function CalendarWidget({ ctx }: { ctx: WidgetCtx }) {
 
 export function GradeWidget({ ctx }: { ctx: WidgetCtx }) {
   const { data, courseFilter } = ctx;
-  const [courseId, setCourseId] = useState(courseFilter ?? data.courses[0]?.id ?? "");
+  const [courseId, setCourseId] = useState(courseFilter || data.courses[0]?.id || "");
   const [target, setTarget] = useState(85);
 
-  const active = courseFilter ?? courseId;
+  const active = courseFilter || courseId;
   const items = data.grades.filter((g) => g.courseId === active);
   const summary = summarizeGrades(items);
   const required = requiredOnRemaining(summary, target);

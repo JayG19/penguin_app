@@ -136,9 +136,19 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   return <label className={cn("block text-[13px] font-medium text-muted mb-1", className)} {...props} />;
 }
 
-export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+/** Browsers let a scroll over a focused number/date/time input silently change its
+ * value — surprising when the user is just scrolling the page. Blurring on wheel
+ * makes the scroll fall through to the page instead, like every other input. */
+const SCROLLABLE_TYPES = new Set(["number", "date", "time", "datetime-local", "month", "week"]);
+
+export function Input({ className, onWheel, type, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
+      type={type}
+      onWheel={(e) => {
+        onWheel?.(e);
+        if (type && SCROLLABLE_TYPES.has(type)) e.currentTarget.blur();
+      }}
       className={cn(
         "w-full h-9 rounded-lg border border-border-base bg-surface px-3 text-sm placeholder:text-faint focus:border-border-strong",
         className,

@@ -11,7 +11,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { Eye, EyeOff, GripVertical, LayoutGrid, RotateCcw } from "lucide-react";
-import { Button, Menu, toast } from "@/components/ui";
+import { Button, FilterMenu, Menu, toast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type {
   AnnouncementDTO, AssignmentDTO, CourseDTO, EventDTO, GradeItemDTO, NoteDTO,
@@ -57,7 +57,8 @@ export interface DashboardData {
 
 export interface WidgetCtx {
   data: DashboardData;
-  courseFilter: string | null;
+  /** Empty string = no filter, matching FilterMenu's convention. */
+  courseFilter: string;
   openAssignment: (a: AssignmentDTO) => void;
   openQuiz: (q: QuizDTO) => void;
 }
@@ -109,7 +110,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   });
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [courseFilter, setCourseFilter] = useState<string | null>(null);
+  const [activeSize, setActiveSize] = useState<{ width: number; height: number } | null>(null);
+  const [courseFilter, setCourseFilter] = useState("");
   const [openA, setOpenA] = useState<AssignmentDTO | null>(null);
   const [openQ, setOpenQ] = useState<QuizDTO | null>(null);
 
@@ -134,10 +136,13 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
+    const rect = e.active.rect.current.initial;
+    setActiveSize(rect ? { width: rect.width, height: rect.height } : null);
   }
 
   function handleDragEnd(e: DragEndEvent) {
     setActiveId(null);
+    setActiveSize(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const visibleIds = layout.filter((entry) => !entry.hidden).map((entry) => entry.id);
@@ -157,7 +162,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   }
 
   const visible = layout.filter((e) => !e.hidden);
-  const activeDef = activeId ? WIDGETS.find((w) => w.id === activeId) : null;
 
   return (
     <div className="space-y-4">
@@ -166,17 +170,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Your board</p>
         <div className="flex items-center gap-2">
-          <select
-            value={courseFilter ?? ""}
-            onChange={(e) => setCourseFilter(e.target.value || null)}
-            className="h-8 rounded-lg border border-border-base bg-surface px-2 text-[13px]"
-            aria-label="Filter dashboard by course"
-          >
-            <option value="">All courses</option>
-            {data.courses.map((c) => (
-              <option key={c.id} value={c.id}>{c.code}</option>
-            ))}
-          </select>
+          <FilterMenu
+            groups={[
+              {
+                id: "course",
+                label: "Course",
+                value: courseFilter,
+                allValue: "",
+                onChange: setCourseFilter,
+                options: [{ value: "", label: "All courses" }, ...data.courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+              },
+            ]}
+          />
 
           <Menu
             trigger={
@@ -236,14 +241,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             })}
           </div>
         </SortableContext>
+        {/* Just an outline of where the widget would land — not a content
+            preview, which was fiddly to size/position correctly and read as
+            buggy. Sized to the dragged widget's own footprint. */}
         <DragOverlay modifiers={[restrictToWindowEdges]}>
-          {activeDef ? (
-            <div className="w-64 max-w-[80vw] rounded-xl border-2 border-accent bg-surface shadow-2xl opacity-95 rotate-1 scale-[1.02]">
-              <div className="px-4 pt-3.5 pb-2">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-accent truncate">{activeDef.title}</h3>
-              </div>
-              <div className="px-4 pb-4 text-xs text-muted">Moving…</div>
-            </div>
+          {activeId ? (
+            <div
+              className="rounded-xl border-2 border-dashed border-accent max-w-[90vw]"
+              style={activeSize ? { width: activeSize.width, height: activeSize.height } : undefined}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>

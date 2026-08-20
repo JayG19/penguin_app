@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, HelpCircle, Pin, Plus, Search, StickyNote, Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Input, Label, Select, Textarea, toast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, FilterMenu, Input, Label, Select, Textarea, toast } from "@/components/ui";
 import type { CourseDTO, NoteDTO } from "@/components/types";
 import { renderMarkdown } from "@/lib/markdown";
 import { cn, courseColor, timeAgo } from "@/lib/utils";
@@ -129,10 +129,18 @@ export function NotesClient({
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notes…" className="pl-8" aria-label="Search notes" />
             </div>
-            <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-24" aria-label="Filter by course">
-              <option value="">All</option>
-              {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-            </Select>
+            <FilterMenu
+              groups={[
+                {
+                  id: "course",
+                  label: "Course",
+                  value: courseFilter,
+                  allValue: "",
+                  onChange: setCourseFilter,
+                  options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+                },
+              ]}
+            />
           </div>
           <div className="space-y-1.5 max-h-[65vh] overflow-y-auto pr-1">
             {filtered.length === 0 && (

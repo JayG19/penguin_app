@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { FileQuestion, MapPin, Plus } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Segmented, Select, SourceBadge } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, FilterMenu, Segmented, SourceBadge } from "@/components/ui";
 import { QuizDrawer } from "@/components/QuizDrawer";
 import type { CourseDTO, QuizDTO } from "@/components/types";
 import { cn, countdown, courseColor, fmtDate, urgencyColor } from "@/lib/utils";
@@ -74,10 +74,18 @@ export function QuizzesClient({ quizzes, courses }: { quizzes: QuizDTO[]; course
           value={view}
           onChange={setView}
         />
-        <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-auto" aria-label="Filter by course">
-          <option value="">All courses</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-        </Select>
+        <FilterMenu
+          groups={[
+            {
+              id: "course",
+              label: "Course",
+              value: courseFilter,
+              allValue: "",
+              onChange: setCourseFilter,
+              options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+            },
+          ]}
+        />
       </div>
 
       {filtered.length === 0 ? (

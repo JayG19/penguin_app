@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BellRing, Check, ExternalLink, MailOpen } from "lucide-react";
-import { Badge, Button, Card, Checkbox, EmptyState, Segmented, Select, SourceBadge, toast } from "@/components/ui";
+import { Badge, Button, Card, Checkbox, EmptyState, FilterMenu, Segmented, SourceBadge, toast } from "@/components/ui";
 import type { AnnouncementDTO, CourseDTO } from "@/components/types";
 import { cn, courseColor, timeAgo } from "@/lib/utils";
 
@@ -94,10 +94,18 @@ export function AnnouncementsClient({ announcements, courses }: { announcements:
 
       <div className="flex gap-2 flex-wrap items-center">
         <Segmented options={[{ value: "all", label: "All" }, { value: "unread", label: "Unread" }]} value={readFilter} onChange={setReadFilter} />
-        <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-auto" aria-label="Filter by course">
-          <option value="">All courses</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-        </Select>
+        <FilterMenu
+          groups={[
+            {
+              id: "course",
+              label: "Course",
+              value: courseFilter,
+              allValue: "",
+              onChange: setCourseFilter,
+              options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+            },
+          ]}
+        />
         {filtered.length > 0 && (
           <label className="ml-1 flex items-center gap-2 text-[13px] text-muted cursor-pointer select-none">
             <Checkbox

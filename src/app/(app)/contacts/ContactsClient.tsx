@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BookOpen, Copy, Mail, Phone, Plus, User } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Input, Select, SourceBadge, toast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, FilterMenu, Input, SourceBadge, toast } from "@/components/ui";
 import type { ContactDTO, CourseDTO } from "@/components/types";
 import { cn, courseColor } from "@/lib/utils";
 
@@ -35,15 +35,26 @@ export function ContactsClient({ contacts, courses }: { contacts: ContactDTO[]; 
 
       <div className="flex gap-2 flex-wrap">
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name…" className="max-w-56" aria-label="Search contacts" />
-        <Select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="w-auto" aria-label="Filter by course">
-          <option value="">All courses</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-        </Select>
-        <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-auto" aria-label="Filter by role">
-          <option value="">All roles</option>
-          <option value="professor">Professors</option>
-          <option value="ta">TAs</option>
-        </Select>
+        <FilterMenu
+          groups={[
+            {
+              id: "course",
+              label: "Course",
+              value: courseFilter,
+              allValue: "",
+              onChange: setCourseFilter,
+              options: [{ value: "", label: "All courses" }, ...courses.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))],
+            },
+            {
+              id: "role",
+              label: "Role",
+              value: roleFilter,
+              allValue: "",
+              onChange: setRoleFilter,
+              options: [{ value: "", label: "All roles" }, { value: "professor", label: "Professors" }, { value: "ta", label: "TAs" }],
+            },
+          ]}
+        />
       </div>
 
       {filtered.length === 0 ? (
