@@ -53,7 +53,7 @@ export function Sidebar({ unreadAnnouncements }: { unreadAnnouncements: number }
         <n.icon size={16} strokeWidth={2} />
         <span className="grow">{n.label}</span>
         {n.href === "/announcements" && unreadAnnouncements > 0 && (
-          <span className="rounded-full bg-white/90 text-[#1a1a2e] text-[10px] font-semibold px-1.5 py-px min-w-[18px] text-center">
+          <span className="rounded-full bg-[var(--accent-light)] text-white text-[10px] font-semibold px-1.5 py-px min-w-[18px] text-center">
             {unreadAnnouncements}
           </span>
         )}
@@ -64,7 +64,7 @@ export function Sidebar({ unreadAnnouncements }: { unreadAnnouncements: number }
   return (
     <aside className="app-sidebar hidden lg:flex w-56 shrink-0 flex-col h-dvh sticky top-0">
       <Link href="/dashboard" className="flex items-center gap-2 px-4 h-14 border-b border-white/10">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent-3)] to-[var(--accent-light)] text-white shadow-[0_4px_14px_-4px_var(--accent-light)]">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent-light)] text-white">
           <GraduationCap size={16} />
         </span>
         <span className="font-semibold tracking-tight text-[15px] text-white">CampusHub</span>

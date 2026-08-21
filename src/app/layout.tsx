@@ -26,10 +26,6 @@ const themeInit = `
         el.style.setProperty("--accent-light-soft", a.vars.lightSoft);
         el.style.setProperty("--accent-dark", a.vars.dark);
         el.style.setProperty("--accent-dark-soft", a.vars.darkSoft);
-        el.style.setProperty("--accent-2", a.vars.accent2);
-        el.style.setProperty("--accent-3", a.vars.accent3);
-        el.style.setProperty("--sidebar-bg", a.vars.sidebarBg);
-        el.style.setProperty("--sidebar-bg-2", a.vars.sidebarBg2);
       }
     }
     if (a.background) el.dataset.bg = a.background;

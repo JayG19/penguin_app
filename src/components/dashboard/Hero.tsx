@@ -143,14 +143,14 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
   ];
 
   return (
-    <section aria-label="Today" className="hero-band relative overflow-hidden rounded-2xl">
+    <section aria-label="Today" className="dashboard-panel relative overflow-hidden rounded-2xl border border-border-base bg-surface">
       <div className="relative p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white" suppressHydrationWarning>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" suppressHydrationWarning>
               {greeting}, {data.userName.split(" ")[0]}
             </h1>
-            <p className="text-[13px] text-white/75 mt-0.5 tabular-nums" suppressHydrationWarning>
+            <p className="text-[13px] text-muted mt-0.5 tabular-nums" suppressHydrationWarning>
               {format(now, "EEEE, MMMM d")} · {format(now, "h:mm a")}
               {data.courses[0]?.term ? ` · ${data.courses[0].term}` : ""}
             </p>
@@ -167,11 +167,15 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
                   title={`Show ${meta.heading.toLowerCase()}`}
                   className={cn(
                     "rounded-xl border px-3 py-1.5 text-center min-w-[4.5rem] transition-colors cursor-pointer",
-                    active ? "border-white bg-white/25" : "border-white/25 bg-white/10 hover:border-white/50 hover:bg-white/15",
+                    active
+                      ? "border-accent bg-accent-soft"
+                      : s.n > 0
+                        ? "border-border-strong bg-surface-2 hover:border-accent/60"
+                        : "border-border-base hover:border-border-strong",
                   )}
                 >
-                  <p className={cn("text-lg font-semibold tabular-nums leading-tight text-white", !active && s.n === 0 && "text-white/60")}>{s.n}</p>
-                  <p className={cn("text-[10px] uppercase tracking-wide", active ? "text-white/90" : "text-white/70")}>{meta.label}</p>
+                  <p className={cn("text-lg font-semibold tabular-nums leading-tight", active ? "text-accent" : s.n > 0 ? "text-foreground" : "text-faint")}>{s.n}</p>
+                  <p className={cn("text-[10px] uppercase tracking-wide", active ? "text-accent" : "text-muted")}>{meta.label}</p>
                 </button>
               );
             })}
@@ -180,7 +184,7 @@ export function HeroToday({ ctx }: { ctx: WidgetCtx }) {
 
         <QuickCaptureBar courses={data.courses} />
 
-        <div className="mt-3 rounded-xl border border-white/20 bg-surface/95 backdrop-blur-sm">
+        <div className="mt-3 rounded-xl border border-border-base bg-surface-2/40">
           <button
             onClick={() => setExpanded((v) => !v)}
             className="flex w-full items-center gap-2 px-3.5 py-2 text-left"
@@ -389,8 +393,8 @@ function SyncLine({ ctx }: { ctx: WidgetCtx }) {
   }
 
   return (
-    <div className="mt-3 flex items-center gap-2 text-xs text-white/80">
-      <span className={cn("h-1.5 w-1.5 rounded-full", log?.status === "error" ? "bg-rose-400" : log && !log.finishedAt ? "bg-amber-300 animate-pulse" : "bg-emerald-300")} />
+    <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+      <span className={cn("h-1.5 w-1.5 rounded-full", log?.status === "error" ? "bg-rose-500" : log && !log.finishedAt ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
       <span>
         Brightspace ·{" "}
         {!log
@@ -405,7 +409,7 @@ function SyncLine({ ctx }: { ctx: WidgetCtx }) {
       <button
         onClick={syncNow}
         disabled={syncing}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/25 px-2.5 py-1 font-medium text-white hover:border-white/50 disabled:opacity-50"
+        className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border-base px-2.5 py-1 font-medium text-foreground hover:border-border-strong disabled:opacity-50"
       >
         {syncing ? <Spinner className="h-3 w-3" /> : <RefreshCw size={11} />}
         {syncing ? "Syncing…" : "Sync now"}
