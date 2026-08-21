@@ -446,7 +446,7 @@ export function WorkloadWidget({ ctx }: { ctx: WidgetCtx }) {
                 <span className="text-muted tabular-nums">≈{r.hours.toFixed(1)}h</span>
               </div>
               <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                <div className={cn("h-full rounded-full", courseColor(r.color).bar)} style={{ width: `${(r.hours / max) * 100}%` }} />
+                <div className={cn("h-full rounded-full", courseColor(r.color).barSoft)} style={{ width: `${(r.hours / max) * 100}%` }} />
               </div>
             </Link>
           ))}

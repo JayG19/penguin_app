@@ -99,7 +99,7 @@ export function Badge({
 
 export function SourceBadge({ source }: { source: string }) {
   return source === "brightspace" ? (
-    <Badge tone="accent" title="Synced from Brightspace">Brightspace</Badge>
+    <Badge tone="neutral" title="Synced from Brightspace">Brightspace</Badge>
   ) : (
     <Badge tone="neutral" title="Manually added">Manual</Badge>
   );

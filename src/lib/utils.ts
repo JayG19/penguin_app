@@ -99,13 +99,13 @@ export function fmtMinutes(total: number): string {
   return `${h}h ${m.toString().padStart(2, "0")}m`;
 }
 
-export const COURSE_COLORS: Record<string, { dot: string; soft: string; text: string; bar: string }> = {
-  indigo: { dot: "bg-indigo-500", soft: "bg-indigo-500/10", text: "text-indigo-600 dark:text-indigo-400", bar: "bg-indigo-500" },
-  emerald: { dot: "bg-emerald-500", soft: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
-  amber: { dot: "bg-amber-500", soft: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500" },
-  rose: { dot: "bg-rose-500", soft: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500" },
-  sky: { dot: "bg-sky-500", soft: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400", bar: "bg-sky-500" },
-  violet: { dot: "bg-violet-500", soft: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400", bar: "bg-violet-500" },
+export const COURSE_COLORS: Record<string, { dot: string; soft: string; text: string; bar: string; barSoft: string }> = {
+  indigo: { dot: "bg-indigo-500", soft: "bg-indigo-500/10", text: "text-indigo-600 dark:text-indigo-400", bar: "bg-indigo-500", barSoft: "bg-indigo-500/55" },
+  emerald: { dot: "bg-emerald-500", soft: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", barSoft: "bg-emerald-500/55" },
+  amber: { dot: "bg-amber-500", soft: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500", barSoft: "bg-amber-500/55" },
+  rose: { dot: "bg-rose-500", soft: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", bar: "bg-rose-500", barSoft: "bg-rose-500/55" },
+  sky: { dot: "bg-sky-500", soft: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400", bar: "bg-sky-500", barSoft: "bg-sky-500/55" },
+  violet: { dot: "bg-violet-500", soft: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400", bar: "bg-violet-500", barSoft: "bg-violet-500/55" },
 };
 
 export function courseColor(color: string | null | undefined) {

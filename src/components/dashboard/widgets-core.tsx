@@ -323,8 +323,7 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
           const overdue = data.assignments.filter((a) => a.courseId === c.id && a.dueAt && new Date(a.dueAt) < now && !["completed", "submitted"].includes(a.status)).length;
 
           return (
-            <div key={c.id} className="p-3.5 hover:bg-surface-2/60 transition-colors relative">
-              <span className={cn("absolute inset-x-0 top-0 h-[3px]", cc.bar)} aria-hidden />
+            <div key={c.id} className="p-3.5 hover:bg-surface-2/60 transition-colors">
               <Link href={`/courses/${c.id}`} className="block group">
                 <div className="flex items-center justify-between gap-2">
                   <Badge tone="none" className={cn(cc.soft, cc.text, "font-mono")}>{c.code}</Badge>
@@ -347,7 +346,7 @@ export function CoursesWidget({ ctx }: { ctx: WidgetCtx }) {
                 <span className="text-muted tabular-nums">{Math.round(c.progress * 100)}% done</span>
               </div>
               <Link href={`/courses/${c.id}`} title="Course progress">
-                <ProgressBar value={c.progress * 100} className="mt-1.5" barClassName={cc.bar} />
+                <ProgressBar value={c.progress * 100} className="mt-1.5" barClassName={cc.barSoft} />
               </Link>
               <div className="mt-2.5 border-t border-border-base pt-2 min-h-10">
                 {next ? (
